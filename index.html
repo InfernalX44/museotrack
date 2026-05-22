@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MuséoTrack</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F5F3EE;--surface:#FFF;--surface2:#F0EDE7;--border:#E0DDD6;--border2:#C8C4BC;
+  --text:#1A1917;--text2:#6B6760;--text3:#9C9891;
+  --accent:#1B4B8A;--accent-light:#E8EFF9;--accent-mid:#3B6CBF;
+  --green:#2D6A4F;--green-bg:#E8F4EE;
+  --amber:#92400E;--amber-bg:#FEF3C7;
+  --red:#991B1B;--red-bg:#FEE2E2;
+  --purple:#4C1D95;--purple-bg:#EDE9FE;
+  --teal:#0E7490;--teal-bg:#E0F2FE;
+  --radius:10px;--radius-sm:6px;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+.shell{display:flex;flex-direction:column;min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.logo{font-weight:600;font-size:16px;color:var(--accent);letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 2.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.header-right{display:flex;align-items:center;gap:10px}
+.sync-indicator{font-size:11px;padding:2px 8px;border-radius:20px;display:flex;align-items:center;gap:4px}
+.sync-indicator.online{background:var(--green-bg);color:var(--green)}
+.sync-indicator.offline{background:var(--amber-bg);color:var(--amber)}
+.sync-indicator.syncing{background:var(--accent-light);color:var(--accent)}
+.alert-chip{background:var(--red-bg);color:var(--red);font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;cursor:pointer;display:none;align-items:center;gap:5px}
+.alert-chip.visible{display:inline-flex}
+nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 16px;gap:0;overflow-x:auto}
+nav::-webkit-scrollbar{display:none}
+.tab{padding:11px 12px;font-size:12px;font-weight:400;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:5px;transition:color .15s}
+.tab svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+.tab:hover:not(.active){color:var(--text)}
+main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto}
+.panel{display:none}
+.panel.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color .15s}
+.stat:hover{border-color:var(--border2)}
+.stat-n{font-size:26px;font-weight:600;line-height:1;margin-bottom:3px}
+.stat-l{font-size:11px;color:var(--text2)}
+.stat.s-total .stat-n{color:var(--text)}
+.stat.s-salle .stat-n{color:var(--green)}
+.stat.s-transit .stat-n{color:var(--amber)}
+.stat.s-reserve .stat-n{color:var(--accent)}
+.stat.s-restauration .stat-n{color:var(--purple)}
+.stat.s-pret .stat-n{color:var(--teal)}
+.sec{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;margin-top:20px}
+.sec:first-child{margin-top:0}
+.alert-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:7px}
+.alert-box.warn{border-left-color:#D97706}
+.alert-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.alert-icon.red{color:var(--red)}
+.alert-icon.amber{color:#D97706}
+.alert-body{flex:1;min-width:0}
+.alert-title{font-weight:500;font-size:13px}
+.alert-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.alert-time{font-size:11px;color:var(--text3);white-space:nowrap}
+.btn-resolve{font-size:12px;padding:3px 9px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:center}
+.btn-resolve:hover{background:var(--surface2)}
+.empty-alerts{background:var(--green-bg);border:1px solid #A7D7B8;border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--green);font-weight:500;display:flex;align-items:center;gap:8px}
+.toolbar{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.chip{font-size:12px;padding:4px 11px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;transition:all .15s}
+.chip.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500}
+.chip:hover:not(.active){border-color:var(--border2);color:var(--text)}
+.search-box{flex:1;min-width:150px;padding:5px 11px;border:1px solid var(--border);border-radius:20px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none}
+.search-box:focus{border-color:var(--accent-mid)}
+.oeuvre-list{display:flex;flex-direction:column;gap:5px}
+.oeuvre-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s}
+.oeuvre-card:hover{border-color:var(--border2)}
+.oeuvre-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);background:var(--surface2);padding:2px 6px;border-radius:var(--radius-sm);flex-shrink:0}
+.oeuvre-col{flex:1;min-width:0}
+.oeuvre-name{font-weight:500;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oeuvre-meta{font-size:11px;color:var(--text2);margin-top:1px}
+.pill{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.p-salle{background:var(--green-bg);color:var(--green)}
+.p-transit{background:var(--amber-bg);color:var(--amber)}
+.p-reserve{background:var(--accent-light);color:var(--accent)}
+.p-restauration{background:var(--purple-bg);color:var(--purple)}
+.p-pret{background:var(--teal-bg);color:var(--teal)}
+.oeuvre-actions{display:flex;gap:5px;align-items:center}
+.btn-sm{font-size:11px;padding:3px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);cursor:pointer;color:var(--text2);transition:all .15s;white-space:nowrap}
+.btn-sm:hover{border-color:var(--border2);color:var(--text)}
+.btn-sm.danger:hover{border-color:var(--red);color:var(--red)}
+.btn-sm.info{border-color:var(--accent-mid);color:var(--accent)}
+.no-results{text-align:center;padding:36px 20px;color:var(--text3);font-size:13px}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-row.full{grid-template-columns:1fr}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:500;color:var(--text2)}
+.field input,.field select,.field textarea{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent-mid)}
+.field textarea{resize:vertical;min-height:60px}
+.field input.scanned{background:var(--accent-light);border-color:var(--accent-mid);font-family:'DM Mono',monospace}
+.btn-primary{width:100%;padding:10px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s;margin-top:2px}
+.btn-primary:hover{background:#163E73}
+.btn-secondary{width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px}
+.scan-modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.scan-mode-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:6px}
+.scan-mode-btn:hover,.scan-mode-btn.active{border-color:var(--accent);background:var(--accent-light)}
+.scan-mode-btn svg{width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.scan-mode-btn span{font-size:13px;font-weight:500;color:var(--accent)}
+.scan-mode-btn small{font-size:11px;color:var(--text2)}
+#camera-container{background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:14px;position:relative;display:none}
+#camera-container.active{display:block}
+#qr-reader{width:100%}
+#qr-reader video{width:100%!important;border-radius:0!important}
+#qr-reader img{display:none!important}
+.camera-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.camera-frame{width:180px;height:180px;border:2px solid rgba(255,255,255,.8);border-radius:12px;position:relative}
+.camera-frame::before,.camera-frame::after{content:'';position:absolute;width:28px;height:28px;border-color:var(--accent-mid);border-style:solid}
+.camera-frame::before{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:10px 0 0 0}
+.camera-frame::after{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 10px 0}
+.scan-line-cam{position:absolute;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,#60A5FA,transparent);animation:scanCam 2s ease-in-out infinite}
+@keyframes scanCam{0%{top:15%}50%{top:82%}100%{top:15%}}
+.camera-stop-btn{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:var(--radius-sm);padding:5px 10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+#manual-container{display:none;margin-bottom:14px}
+#manual-container.active{display:block}
+.manual-input-wrap{display:flex;gap:7px}
+.manual-input-wrap input{flex:1;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Mono',monospace;background:var(--surface);color:var(--text);outline:none}
+.manual-input-wrap button{padding:9px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.scanned-badge{display:none;align-items:center;gap:8px;background:var(--accent-light);border:1px solid #B3CCF0;border-radius:var(--radius);padding:9px 12px;margin-bottom:14px;font-size:13px;color:var(--accent);font-weight:500}
+.scanned-badge.show{display:flex}
+.perm-box{background:var(--amber-bg);border:1px solid #FCD34D;border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--amber);margin-bottom:10px;display:none}
+.perm-box.show{display:block}
+.portique-status{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.portique-indicator{display:flex;align-items:center;gap:10px}
+.portique-led{width:13px;height:13px;border-radius:50%;flex-shrink:0;transition:background .3s}
+.portique-led.ok{background:#22C55E;box-shadow:0 0 8px #22C55E}
+.portique-led.alarm{background:#EF4444;box-shadow:0 0 12px #EF4444;animation:ledPulse .4s ease-in-out infinite}
+.portique-led.standby{background:var(--border2)}
+@keyframes ledPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.portique-label{font-weight:500;font-size:13px}
+.portique-sublabel{font-size:11px;color:var(--text2);margin-top:2px}
+.portique-toggle-btn{padding:7px 16px;border-radius:var(--radius);border:none;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
+.portique-toggle-btn.start{background:var(--accent);color:#fff}
+.portique-toggle-btn.stop{background:var(--red-bg);color:var(--red);border:1px solid #FCA5A5}
+.portique-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:640px){.portique-grid{grid-template-columns:1fr}}
+.portique-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.portique-card-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.auth-list{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto}
+.auth-item{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2)}
+.auth-item-id{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);flex-shrink:0}
+.auth-item-name{flex:1;font-size:12px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.auth-remove{font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--text3)}
+.auth-remove:hover{border-color:var(--red);color:var(--red)}
+.no-auth{font-size:12px;color:var(--text3);padding:12px 0;text-align:center}
+.auth-add-row{display:flex;gap:7px;margin-top:9px}
+.auth-add-row select{flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none}
+.auth-add-row button{padding:6px 12px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.portique-log{display:flex;flex-direction:column;max-height:220px;overflow-y:auto}
+.log-item{display:flex;align-items:flex-start;gap:7px;padding:6px 0;border-bottom:1px solid var(--border)}
+.log-item:last-child{border-bottom:none}
+.log-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.log-dot.ok{background:var(--green)}
+.log-dot.alarm{background:var(--red)}
+.log-action{font-size:12px;color:var(--text);flex:1}
+.log-time{font-size:11px;color:var(--text3);white-space:nowrap}
+.sim-area{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+.sim-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.sim-btns{display:flex;gap:6px;flex-wrap:wrap}
+.sim-btn{font-size:12px;padding:5px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif}
+.sim-btn.ok{border-color:var(--green);color:var(--green)}
+.sim-btn.ok:hover{background:var(--green-bg)}
+.sim-btn.alarm{border-color:var(--red);color:var(--red)}
+.sim-btn.alarm:hover{background:var(--red-bg)}
+.pret-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:7px;cursor:pointer;transition:border-color .15s}
+.pret-card:hover{border-color:var(--border2)}
+.pret-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.pret-institution{font-weight:600;font-size:13px;flex:1}
+.pret-oeuvres{font-size:12px;color:var(--text2);margin-bottom:6px}
+.pret-footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pret-status{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px}
+.ps-preparation{background:#FEF3C7;color:#92400E}
+.ps-enCours{background:var(--teal-bg);color:var(--teal)}
+.ps-retour{background:var(--purple-bg);color:var(--purple)}
+.ps-clos{background:var(--surface2);color:var(--text3)}
+.etat-badge{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid var(--border)}
+.etat-ok{border-color:var(--green);color:var(--green)}
+.etat-missing{border-color:var(--border2);color:var(--text3)}
+.transit-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:7px;cursor:pointer;transition:border-color .15s}
+.transit-card:hover{border-color:var(--border2)}
+.transit-header{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.transit-title{font-weight:600;font-size:13px;flex:1}
+.transit-route{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.transit-arrow{color:var(--text3);font-size:10px}
+.transit-meta{display:flex;gap:10px;flex-wrap:wrap}
+.transit-meta-item{font-size:11px;color:var(--text2)}
+.t-status{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px}
+.ts-enRoute{background:var(--amber-bg);color:var(--amber)}
+.ts-arrive{background:var(--green-bg);color:var(--green)}
+.ts-retard{background:var(--red-bg);color:var(--red)}
+.ts-planifie{background:var(--accent-light);color:var(--accent)}
+.checkpoint-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+.checkpoint-row:last-child{border-bottom:none}
+.cp-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cp-dot.done{background:var(--green)}
+.cp-dot.pending{background:var(--border2)}
+.cp-dot.active{background:var(--amber);animation:ledPulse 1s ease-in-out infinite}
+.cp-label{flex:1;font-size:12px}
+.cp-time{font-size:11px;color:var(--text3)}
+.cp-scan-btn{font-size:11px;padding:3px 8px;border-radius:var(--radius-sm);border:1px solid var(--accent-mid);color:var(--accent);background:none;cursor:pointer}
+.history-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.history-item:last-child{border-bottom:none}
+.h-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.h-dot.ok{background:var(--green)}
+.h-dot.alert{background:var(--red)}
+.h-dot.neutral{background:var(--border2)}
+.h-body{flex:1;min-width:0}
+.h-action{font-size:13px;color:var(--text)}
+.h-who{font-size:11px;color:var(--text2);margin-top:1px}
+.h-time{font-size:11px;color:var(--text3);white-space:nowrap}
+.history-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px}
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.settings-title{font-size:13px;font-weight:600;margin-bottom:10px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-size:13px}
+.setting-sub{font-size:11px;color:var(--text2);margin-top:1px}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--border2);border-radius:10px;cursor:pointer;transition:.2s}
+.toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-slider{background:var(--accent)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(16px)}
+.resp-list{list-style:none}
+.resp-item{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.resp-item:last-child{border-bottom:none}
+.btn-add{font-size:12px;padding:4px 10px;border:1px solid var(--accent);border-radius:var(--radius-sm);background:none;color:var(--accent);cursor:pointer}
+.btn-add:hover{background:var(--accent-light)}
+.alarm-overlay{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(153,27,27,.97);opacity:0;pointer-events:none;transition:opacity .2s}
+.alarm-overlay.active{opacity:1;pointer-events:all;animation:alarmFlash .5s ease-in-out infinite alternate}
+@keyframes alarmFlash{from{background:rgba(153,27,27,.95)}to{background:rgba(220,38,38,.98)}}
+.alarm-icon{font-size:64px;margin-bottom:14px;animation:shake .3s ease-in-out infinite}
+@keyframes shake{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+.alarm-title{font-size:28px;font-weight:700;color:#fff;margin-bottom:6px;text-align:center}
+.alarm-sub{font-size:14px;color:rgba(255,255,255,.85);margin-bottom:16px;text-align:center}
+.alarm-oeuvre-name{font-size:18px;font-weight:600;color:#fff;background:rgba(0,0,0,.3);padding:8px 20px;border-radius:var(--radius);margin-bottom:20px}
+.alarm-dismiss{padding:10px 28px;border-radius:var(--radius);border:2px solid rgba(255,255,255,.6);background:transparent;color:#fff;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;overflow-y:auto}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:var(--radius);padding:22px;width:100%;max-width:580px;box-shadow:0 20px 60px rgba(0,0,0,.15);transform:scale(.95);transition:transform .2s;margin-top:40px}
+.modal-overlay.open .modal{transform:scale(1)}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.modal-footer{display:flex;gap:8px;margin-top:14px}
+.btn-cancel{flex:1;padding:9px;border:1px solid var(--border);border-radius:var(--radius);background:none;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif}
+.btn-confirm{flex:1;padding:9px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif}
+.fiche-section{margin-bottom:16px}
+.fiche-section-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.fiche-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+.fiche-row{padding:4px 0}
+.fiche-label{font-size:11px;color:var(--text3);margin-bottom:1px}
+.fiche-value{font-size:13px;color:var(--text)}
+.fiche-value.mono{font-family:'DM Mono',monospace;font-size:12px}
+.link-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--accent-mid);border-radius:var(--radius-sm);margin-top:4px}
+.link-btn:hover{background:var(--accent-light)}
+.etat-conserv{padding:4px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;display:inline-block;margin-top:2px}
+.etat-bon{background:var(--green-bg);color:var(--green)}
+.etat-moyen{background:var(--amber-bg);color:var(--amber)}
+.etat-mauvais{background:var(--red-bg);color:var(--red)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:#fff;padding:9px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.success{background:var(--green)}
+#toast.error{background:var(--red)}
+#toast.warn{background:#D97706}
+.barcode-wrap{background:#fff;padding:10px;border-radius:var(--radius-sm);display:inline-flex;flex-direction:column;align-items:center;gap:6px}
+.barcode-wrap svg{max-width:220px}
+.loading-overlay{position:fixed;inset:0;background:rgba(245,243,238,.85);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.loading-overlay.hidden{display:none}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--text2)}
+@media(max-width:600px){main{padding:14px}.form-row,.form-row.three{grid-template-columns:1fr}header{padding:0 14px}nav{padding:0 6px}.tab{padding:10px 8px;font-size:11px}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>MuséoTrack</div>
+  <div class="header-right">
+    <span class="sync-indicator online" id="syncIndicator">● En ligne</span>
+    <span class="alert-chip" id="alertChip" onclick="goTab('dashboard')">⚠ <span id="alertChipCount">0</span></span>
+    <span style="font-size:12px;color:var(--text3)" id="clockDisplay"></span>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" onclick="goTab('dashboard')" id="tab-dashboard">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Bord
+  </button>
+  <button class="tab" onclick="goTab('oeuvres')" id="tab-oeuvres">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Oeuvres <span id="oeuvreBadge" style="font-size:10px;background:var(--surface2);padding:1px 5px;border-radius:10px;margin-left:2px"></span>
+  </button>
+  <button class="tab" onclick="goTab('scan')" id="tab-scan">
+    <svg viewBox="0 0 24 24"><path d="M4 7V5a2 2 0 0 1 2-2h2M16 3h2a2 2 0 0 1 2 2v2M4 17v2a2 2 0 0 0 2 2h2M16 21h2a2 2 0 0 0 2-2v-2M7 12h10"/></svg>Scanner
+  </button>
+  <button class="tab" onclick="goTab('portique')" id="tab-portique">
+    <svg viewBox="0 0 24 24"><path d="M12 2v20M2 7h20M2 17h20"/></svg>Portique
+  </button>
+  <button class="tab" onclick="goTab('prets')" id="tab-prets">
+    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Prêts
+  </button>
+  <button class="tab" onclick="goTab('transit')" id="tab-transit">
+    <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8zM5.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>Transit
+  </button>
+  <button class="tab" onclick="goTab('historique')" id="tab-historique">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historique
+  </button>
+  <button class="tab" onclick="goTab('settings')" id="tab-settings">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>Paramètres
+  </button>
+</nav>
+
+<main>
+
+<div class="panel active" id="panel-dashboard">
+  <div class="stats-grid">
+    <div class="stat s-total" onclick="goTab('oeuvres');filterStatus('tout')"><div class="stat-n" id="statTotal">0</div><div class="stat-l">Total</div></div>
+    <div class="stat s-salle" onclick="goTab('oeuvres');filterStatus('salle')"><div class="stat-n" id="statSalle">0</div><div class="stat-l">En salle</div></div>
+    <div class="stat s-transit" onclick="goTab('oeuvres');filterStatus('transit')"><div class="stat-n" id="statTransit">0</div><div class="stat-l">Transit</div></div>
+    <div class="stat s-reserve" onclick="goTab('oeuvres');filterStatus('reserve')"><div class="stat-n" id="statReserve">0</div><div class="stat-l">Réserve</div></div>
+    <div class="stat s-restauration" onclick="goTab('oeuvres');filterStatus('restauration')"><div class="stat-n" id="statRestauration">0</div><div class="stat-l">Restauration</div></div>
+    <div class="stat s-pret" onclick="goTab('prets')"><div class="stat-n" id="statPret">0</div><div class="stat-l">En prêt</div></div>
+  </div>
+  <div class="sec">Alertes actives</div>
+  <div id="alertContainer"></div>
+  <div class="sec">Derniers mouvements</div>
+  <div class="history-card" id="dashHistory"></div>
+</div>
+
+<div class="panel" id="panel-oeuvres">
+  <div class="toolbar">
+    <input type="text" class="search-box" placeholder="Rechercher..." id="searchInput" oninput="renderOeuvres()">
+    <button class="chip active" onclick="filterStatus('tout')" data-filter="tout">Tout</button>
+    <button class="chip" onclick="filterStatus('salle')" data-filter="salle">Salle</button>
+    <button class="chip" onclick="filterStatus('transit')" data-filter="transit">Transit</button>
+    <button class="chip" onclick="filterStatus('reserve')" data-filter="reserve">Réserve</button>
+    <button class="chip" onclick="filterStatus('restauration')" data-filter="restauration">Restauration</button>
+    <button class="chip" onclick="filterStatus('pret')" data-filter="pret">Prêt</button>
+  </div>
+  <div class="oeuvre-list" id="oeuvreList"></div>
+</div>
+
+<div class="panel" id="panel-scan">
+  <div class="scan-modes">
+    <div class="scan-mode-btn active" id="mode-camera" onclick="setMode('camera')">
+      <svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+      <span>Caméra</span><small>Scanner QR / code-barres</small>
+    </div>
+    <div class="scan-mode-btn" id="mode-manual" onclick="setMode('manual')">
+      <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <span>Manuel</span><small>Entrer l'identifiant</small>
+    </div>
+  </div>
+  <div class="perm-box" id="permBox">⚠ Autorisation caméra refusée. Utilisez le mode manuel.</div>
+  <div id="camera-container"><div id="qr-reader"></div><div class="camera-overlay"><div class="camera-frame"><div class="scan-line-cam"></div></div></div><button class="camera-stop-btn" onclick="stopCamera()">✕ Arrêter</button></div>
+  <div id="manual-container"><div class="manual-input-wrap"><input type="text" id="manualId" placeholder="MT-0001" oninput="onScanIdInput(this.value.toUpperCase())" style="text-transform:uppercase"><button onclick="applyManualId()">Valider</button></div></div>
+  <div class="scanned-badge" id="scannedBadge">✓ Identifié : <strong id="scannedName"></strong></div>
+  <div class="form-card" id="moveForm" style="display:none">
+    <div class="form-row"><div class="field"><label>Identifiant scanné</label><input type="text" id="scanId" readonly class="scanned"></div><div class="field"><label>Nouvelle localisation</label><select id="destSelect"><option value="">-- Choisir --</option><option>Salle A</option><option>Salle B</option><option>Salle C</option><option>Réserve 1</option><option>Réserve 2</option><option>Transit externe</option><option>Atelier restauration</option></select></div></div>
+    <div class="form-row"><div class="field"><label>Responsable</label><select id="respSelect"><option value="">-- Choisir --</option></select></div><div class="field"><label>Statut</label><select id="statusSelect"><option value="salle">En salle</option><option value="transit">En transit</option><option value="reserve">En réserve</option><option value="restauration">En restauration</option></select></div></div>
+    <div class="form-row full"><div class="field"><label>Note</label><textarea id="moveNote" placeholder="Remarque éventuelle..."></textarea></div></div>
+    <button class="btn-primary" onclick="confirmMove()">Confirmer le mouvement</button>
+  </div>
+  <div style="margin-top:24px">
+    <div class="sec">Enregistrer une nouvelle oeuvre</div>
+    <div class="form-card">
+      <div class="form-row"><div class="field"><label>Nom *</label><input type="text" id="newName" placeholder="Portrait de femme"></div><div class="field"><label>Auteur</label><input type="text" id="newAuthor" placeholder="Anonyme, XVIIe s."></div></div>
+      <div class="form-row three"><div class="field"><label>Catégorie</label><input type="text" id="newCat" placeholder="Peinture"></div><div class="field"><label>Dimensions</label><input type="text" id="newDim" placeholder="45 × 62 cm"></div><div class="field"><label>Matériaux</label><input type="text" id="newMat" placeholder="Huile sur toile"></div></div>
+      <div class="form-row"><div class="field"><label>N° inventaire</label><input type="text" id="newNumInv" placeholder="INV-2024-001"></div><div class="field"><label>Valeur assurée (CHF)</label><input type="number" id="newValeur" placeholder="0"></div></div>
+      <div class="form-row"><div class="field"><label>État</label><select id="newEtat"><option value="bon">Bon</option><option value="moyen">Moyen</option><option value="mauvais">Mauvais</option></select></div><div class="field"><label>Lien fiche / PDF</label><input type="url" id="newLien" placeholder="https://..."></div></div>
+      <div class="form-row"><div class="field"><label>Localisation</label><select id="newLoc"><option>Salle A</option><option>Salle B</option><option>Salle C</option><option>Réserve 1</option><option>Réserve 2</option><option>Atelier restauration</option></select></div><div class="field"><label>Responsable</label><select id="newResp"><option value="">-- Choisir --</option></select></div></div>
+      <div class="form-row full"><div class="field"><label>Notes / Provenance</label><textarea id="newNotes" placeholder="Provenance, restaurations précédentes..."></textarea></div></div>
+      <button class="btn-primary" onclick="addOeuvre()">+ Enregistrer et générer code-barres</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-portique">
+  <div class="portique-status">
+    <div class="portique-indicator"><div class="portique-led standby" id="portiqueLed"></div><div><div class="portique-label" id="portiqueLabel">Portique inactif</div><div class="portique-sublabel" id="portiqueSub">Cliquez Activer pour surveiller</div></div></div>
+    <button class="portique-toggle-btn start" id="portiqueToggleBtn" onclick="togglePortique()">Activer</button>
+  </div>
+  <div class="portique-grid">
+    <div class="portique-card"><div class="portique-card-title">Oeuvres autorisées à sortir</div><div class="auth-list" id="authList"></div><div class="auth-add-row"><select id="authSelect"><option value="">Ajouter...</option></select><button onclick="addAuth()">+ Autoriser</button></div></div>
+    <div class="portique-card"><div class="portique-card-title">Journal des passages</div><div class="portique-log" id="portiqueLog"></div></div>
+  </div>
+  <div class="sim-area"><div class="sim-title">Simuler un passage</div><div class="sim-btns" id="simBtns"></div></div>
+</div>
+
+<div class="panel" id="panel-prets">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="sec" style="margin:0">Prêts inter-institutions</div><button class="btn-sm info" onclick="openNewPret()">+ Nouveau prêt</button></div>
+  <div id="pretList"></div>
+</div>
+
+<div class="panel" id="panel-transit">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="sec" style="margin:0">Opérations de transit</div><button class="btn-sm info" onclick="openNewTransit()">+ Nouveau transit</button></div>
+  <div id="transitList"></div>
+</div>
+
+<div class="panel" id="panel-historique">
+  <div class="toolbar"><input type="text" class="search-box" placeholder="Filtrer..." id="histSearch" oninput="renderHistory()"></div>
+  <div class="history-card" id="fullHistory"></div>
+</div>
+
+<div class="panel" id="panel-settings">
+  <div class="settings-section">
+    <div class="settings-title">Connexion Supabase</div>
+    <div class="setting-row"><div><div class="setting-label">Base de données</div><div class="setting-sub" id="dbStatus">Vérification...</div></div><div class="sync-indicator online" id="dbIndicator">● Connecté</div></div>
+    <div class="setting-row"><div><div class="setting-label">Synchronisation temps réel</div><div class="setting-sub">Mises à jour entre appareils</div></div><label class="toggle"><input type="checkbox" checked id="togRealtime"><span class="toggle-slider"></span></label></div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-title">Alertes</div>
+    <div class="setting-row"><div><div class="setting-label">Alerte transit sans confirmation</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+    <div class="setting-row"><div><div class="setting-label">Alarme portique</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-title">Responsables</div>
+    <ul class="resp-list" id="respList"></ul>
+    <div style="display:flex;gap:8px;margin-top:10px"><input type="text" id="newRespInput" placeholder="Nom du responsable" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif"><button class="btn-add" onclick="addResponsable()">+ Ajouter</button></div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-title">Données</div>
+    <div class="setting-row"><div><div class="setting-label">Exporter tout</div><div class="setting-sub">Télécharger en JSON</div></div><button class="btn-sm" onclick="exportData()">Exporter</button></div>
+    <div class="setting-row"><div><div class="setting-label">Réinitialiser</div><div class="setting-sub">Vide toutes les tables Supabase</div></div><button class="btn-sm danger" onclick="confirmReset()">Réinitialiser</button></div>
+  </div>
+  <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:14px">MuséoTrack v2.0 · Supabase · Multi-appareils · Temps réel</p>
+</div>
+
+</main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="ficheModal"><div class="modal" style="max-width:620px"><div class="modal-title" id="ficheTitle">Fiche inventaire</div><div id="ficheContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('ficheModal')">Fermer</button><button class="btn-confirm" onclick="editFiche()">Modifier</button></div></div></div>
+<div class="modal-overlay" id="editFicheModal"><div class="modal" style="max-width:620px"><div class="modal-title">Modifier la fiche</div><div id="editFicheContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('editFicheModal')">Annuler</button><button class="btn-confirm" onclick="saveFiche()">Enregistrer</button></div></div></div>
+<div class="modal-overlay" id="pretModal"><div class="modal" style="max-width:640px"><div class="modal-title" id="pretModalTitle">Nouveau prêt</div><div id="pretModalContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('pretModal')">Annuler</button><button class="btn-confirm" onclick="savePret()">Enregistrer</button></div></div></div>
+<div class="modal-overlay" id="pretDetailModal"><div class="modal" style="max-width:640px"><div class="modal-title" id="pretDetailTitle"></div><div id="pretDetailContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('pretDetailModal')">Fermer</button></div></div></div>
+<div class="modal-overlay" id="transitModal"><div class="modal" style="max-width:640px"><div class="modal-title">Nouveau transit</div><div id="transitModalContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('transitModal')">Annuler</button><button class="btn-confirm" onclick="saveTransit()">Créer</button></div></div></div>
+<div class="modal-overlay" id="transitDetailModal"><div class="modal" style="max-width:640px"><div class="modal-title" id="transitDetailTitle"></div><div id="transitDetailContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('transitDetailModal')">Fermer</button></div></div></div>
+<div class="modal-overlay" id="barcodeModal"><div class="modal" style="text-align:center"><div class="modal-title" style="justify-content:center">Code-barres</div><div class="barcode-wrap" style="margin:0 auto 8px"><svg id="barcodesvg"></svg></div><div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);margin-bottom:8px" id="barcodeIdText"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('barcodeModal')">Fermer</button><button class="btn-confirm" onclick="printBarcode()">Imprimer</button></div></div></div>
+
+<div class="alarm-overlay" id="alarmOverlay">
+  <div class="alarm-icon">🚨</div>
+  <div class="alarm-title">ALARME PORTIQUE</div>
+  <div class="alarm-sub">Passage non autorisé détecté</div>
+  <div class="alarm-oeuvre-name" id="alarmOeuvreName"></div>
+  <button class="alarm-dismiss" onclick="dismissAlarm()">Acquitter</button>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Connexion à la base de données...</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────
+const SB_URL = 'https://xjtntzgrwsnidtbvesgj.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqdG50emdyd3NuaWR0YnZlc2dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjY0NzMsImV4cCI6MjA5NDkwMjQ3M30.Hcp54T0jLlroUwIcSjy1ML-nil2m6tpAyjQelKHj6UY';
+const HEADERS = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+async function sb(method, table, body=null, query='') {
+  setSyncStatus('syncing');
+  try {
+    const opts = { method, headers: HEADERS };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${SB_URL}/rest/v1/${table}${query}`, opts);
+    setSyncStatus('online');
+    if (!res.ok) { const err = await res.text(); throw new Error(err); }
+    if (res.status === 204) return [];
+    return await res.json();
+  } catch(e) {
+    setSyncStatus('offline');
+    throw e;
+  }
+}
+
+function setSyncStatus(s) {
+  const el = document.getElementById('syncIndicator');
+  const map = { online:{text:'● En ligne',cls:'online'}, offline:{text:'● Hors ligne',cls:'offline'}, syncing:{text:'↻ Sync...',cls:'syncing'} };
+  const m = map[s] || map.online;
+  el.textContent = m.text; el.className = `sync-indicator ${m.cls}`;
+}
+
+// ─── LOCAL STATE (cache) ──────────────────────────────────────────────────
+let state = {
+  oeuvres:[], history:[], alerts:[], responsables:[], prets:[], transits:[],
+  portique:{active:false, authorized:[], log:[]},
+  nextId:1, nextPretId:1, nextTransitId:1,
+  currentFilter:'tout', selectedOeuvreId:null
+};
+
+// ─── LOAD ALL DATA ────────────────────────────────────────────────────────
+async function loadAll() {
+  showLoading('Chargement des données...');
+  try {
+    const [oeuvres, history, alerts, responsables, prets, transits, config] = await Promise.all([
+      sb('GET','oeuvres','','?order=created_at.asc'),
+      sb('GET','history','','?order=ts.asc&limit=200'),
+      sb('GET','alerts','','?order=ts.desc'),
+      sb('GET','responsables','','?order=name.asc'),
+      sb('GET','prets','','?order=created_at.desc'),
+      sb('GET','transits','','?order=created_at.desc'),
+      sb('GET','config','','?key=eq.app_state')
+    ]);
+    state.oeuvres = oeuvres.map(dbToOeuvre);
+    state.history = history;
+    state.alerts = alerts;
+    state.responsables = responsables.map(r=>r.name);
+    state.prets = prets.map(dbToPret);
+    state.transits = transits.map(dbToTransit);
+    if (config.length) {
+      const c = config[0].value;
+      state.portique = c.portique || {active:false,authorized:[],log:[]};
+      state.nextId = c.nextId || (oeuvres.length + 1);
+      state.nextPretId = c.nextPretId || (prets.length + 1);
+      state.nextTransitId = c.nextTransitId || (transits.length + 1);
+    } else {
+      // seed default responsables if empty
+      if (!state.responsables.length) {
+        for (const n of ['M. Duval','S. Müller','L. Favre']) {
+          await sb('POST','responsables',{name:n}).catch(()=>{});
+        }
+        state.responsables = ['M. Duval','S. Müller','L. Favre'];
+      }
+    }
+    hideLoading();
+    renderDashboard(); renderSettings();
+    document.getElementById('dbStatus').textContent = `Connecté — ${SB_URL.replace('https://','').split('.')[0]}`;
+  } catch(e) {
+    hideLoading();
+    toast('Erreur de connexion à Supabase','error');
+    console.error(e);
+  }
+}
+
+async function saveConfig() {
+  const val = { portique: state.portique, nextId: state.nextId, nextPretId: state.nextPretId, nextTransitId: state.nextTransitId };
+  await sb('POST','config',{key:'app_state',value:val},'').catch(async ()=>{
+    await sb('PATCH','config',{value:val},'?key=eq.app_state').catch(console.error);
+  });
+}
+
+// ─── DB MAPPERS ───────────────────────────────────────────────────────────
+function dbToOeuvre(r) {
+  return { id:r.id, name:r.name, author:r.author||'', cat:r.cat||'', dim:r.dim||'', mat:r.mat||'', numInv:r.num_inv||'', valeur:r.valeur||0, etat:r.etat||'bon', lien:r.lien||'', loc:r.loc||'', status:r.status||'salle', resp:r.resp||'', notes:r.notes||'', createdAt:new Date(r.created_at).getTime() };
+}
+function oeuvreToDb(o) {
+  return { id:o.id, name:o.name, author:o.author, cat:o.cat, dim:o.dim, mat:o.mat, num_inv:o.numInv, valeur:o.valeur, etat:o.etat, lien:o.lien, loc:o.loc, status:o.status, resp:o.resp, notes:o.notes };
+}
+function dbToPret(r) {
+  return { id:r.id, institution:r.institution, contact:r.contact||'', depart:r.depart||'', retour:r.retour||'', oeuvresIds:r.oeuvres_ids||[], transporteur:r.transporteur||'', assurance:r.assurance||'', etatDepart:r.etat_depart||'', etatRetour:r.etat_retour||'', conditions:r.conditions||'', notes:r.notes||'', statut:r.statut||'preparation', createdAt:new Date(r.created_at).getTime() };
+}
+function pretToDb(p) {
+  return { id:p.id, institution:p.institution, contact:p.contact, depart:p.depart, retour:p.retour, oeuvres_ids:p.oeuvresIds, transporteur:p.transporteur, assurance:p.assurance, etat_depart:p.etatDepart, etat_retour:p.etatRetour, conditions:p.conditions, notes:p.notes, statut:p.statut };
+}
+function dbToTransit(r) {
+  return { id:r.id, from:r.from_loc||'', to:r.to_loc||'', depart:r.depart||'', arrivee:r.arrivee||'', oeuvresIds:r.oeuvres_ids||[], transporteur:r.transporteur||'', vehicule:r.vehicule||'', temp:r.temp||'', hum:r.hum||'', emballage:r.emballage||'', instructions:r.instructions||'', statut:r.statut||'planifie', checkpoints:r.checkpoints||[], createdAt:new Date(r.created_at).getTime() };
+}
+function transitToDb(t) {
+  return { id:t.id, from_loc:t.from, to_loc:t.to, depart:t.depart, arrivee:t.arrivee, oeuvres_ids:t.oeuvresIds, transporteur:t.transporteur, vehicule:t.vehicule, temp:t.temp, hum:t.hum, emballage:t.emballage, instructions:t.instructions, statut:t.statut, checkpoints:t.checkpoints };
+}
+
+// ─── CLOCK / UI UTILS ─────────────────────────────────────────────────────
+function updateClock(){document.getElementById('clockDisplay').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+setInterval(updateClock,1000); updateClock();
+function showLoading(t){document.getElementById('loadingText').textContent=t;document.getElementById('loadingOverlay').classList.remove('hidden')}
+function hideLoading(){document.getElementById('loadingOverlay').classList.add('hidden')}
+function goTab(id){
+  stopCamera();
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  const fn={oeuvres:renderOeuvres,dashboard:renderDashboard,historique:renderHistory,settings:renderSettings,portique:renderPortique,prets:renderPrets,transit:renderTransits};
+  if(fn[id])fn[id]();
+  if(id==='scan'){syncRespSelects();startCameraIfMode()}
+}
+let toastTimer;
+function toast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.className='',3500)}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+
+// ─── AUDIO ────────────────────────────────────────────────────────────────
+let alarmInterval=null;
+function playAlarmSound(){try{const ctx=new AudioContext();function b(f,s,d){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=f;o.type='square';g.gain.setValueAtTime(0.12,ctx.currentTime+s);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+s+d);o.start(ctx.currentTime+s);o.stop(ctx.currentTime+s+d)}b(880,0,.15);b(660,.2,.15);b(880,.4,.15);b(660,.6,.15)}catch(e){}}
+function startAlarmLoop(){playAlarmSound();alarmInterval=setInterval(playAlarmSound,900)}
+function stopAlarmLoop(){clearInterval(alarmInterval);alarmInterval=null}
+function beepOk(){try{const ctx=new AudioContext(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=0.07;o.start();o.stop(ctx.currentTime+0.08)}catch(e){}}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const o=state.oeuvres;
+  document.getElementById('statTotal').textContent=o.length;
+  document.getElementById('statSalle').textContent=o.filter(x=>x.status==='salle').length;
+  document.getElementById('statTransit').textContent=o.filter(x=>x.status==='transit').length;
+  document.getElementById('statReserve').textContent=o.filter(x=>x.status==='reserve').length;
+  document.getElementById('statRestauration').textContent=o.filter(x=>x.status==='restauration').length;
+  document.getElementById('statPret').textContent=o.filter(x=>x.status==='pret').length;
+  document.getElementById('oeuvreBadge').textContent=o.length;
+  const ac=document.getElementById('alertContainer'),chip=document.getElementById('alertChip');
+  if(!state.alerts.length){ac.innerHTML='<div class="empty-alerts">✓ Aucune alerte active.</div>';chip.classList.remove('visible')}
+  else{chip.classList.add('visible');document.getElementById('alertChipCount').textContent=state.alerts.length;ac.innerHTML=state.alerts.map(a=>`<div class="alert-box ${a.type==='amber'?'warn':''}" id="alert-${a.id}"><span class="alert-icon ${a.type}">${a.type==='red'?'⚠':'⏱'}</span><div class="alert-body"><div class="alert-title">${a.title}</div><div class="alert-sub">${a.detail}</div></div><span class="alert-time">${formatTime(a.ts)}</span><button class="btn-resolve" onclick="resolveAlert('${a.id}')">Résoudre</button></div>`).join('')}
+  const recent=[...state.history].reverse().slice(0,5);
+  document.getElementById('dashHistory').innerHTML=recent.length?recent.map(h=>`<div class="history-item"><div class="h-dot ${h.type}"></div><div class="h-body"><div class="h-action">${h.text}</div><div class="h-who">${h.who}</div></div><div class="h-time">${formatTime(h.ts)}</div></div>`).join(''):'<div style="padding:14px;font-size:13px;color:var(--text3)">Aucun mouvement.</div>';
+}
+
+async function resolveAlert(id){
+  await sb('DELETE','alerts','',`?id=eq.${id}`).catch(console.error);
+  state.alerts=state.alerts.filter(a=>a.id!==id);
+  renderDashboard();toast('Alerte résolue','success');
+}
+
+// ─── OEUVRES ──────────────────────────────────────────────────────────────
+function filterStatus(f){state.currentFilter=f;document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active',c.dataset.filter===f));renderOeuvres()}
+function renderOeuvres(){
+  const q=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  let list=state.oeuvres;
+  if(state.currentFilter!=='tout')list=list.filter(o=>o.status===state.currentFilter);
+  if(q)list=list.filter(o=>o.name.toLowerCase().includes(q)||o.id.toLowerCase().includes(q)||(o.author||'').toLowerCase().includes(q)||(o.numInv||'').toLowerCase().includes(q));
+  const el=document.getElementById('oeuvreList');
+  if(!list.length){el.innerHTML='<div class="no-results">Aucune oeuvre trouvée.</div>';return}
+  el.innerHTML=list.map(o=>`<div class="oeuvre-card"><span class="oeuvre-id">${o.id}</span><div class="oeuvre-col"><div class="oeuvre-name">${o.name}</div><div class="oeuvre-meta">${o.loc} · ${o.resp||'—'} ${o.numInv?'· '+o.numInv:''}</div></div><span class="pill p-${o.status}">${statusLabel(o.status)}</span><div class="oeuvre-actions"><button class="btn-sm info" onclick="showFiche('${o.id}')">Fiche</button><button class="btn-sm" onclick="showBarcode('${o.id}')">&#9646;&#9646;</button><button class="btn-sm" onclick="openMoveFromOeuvre('${o.id}')">Déplacer</button><button class="btn-sm danger" onclick="deleteOeuvre('${o.id}')">✕</button></div></div>`).join('');
+}
+
+async function addOeuvre(){
+  const name=document.getElementById('newName').value.trim();if(!name){toast('Nom requis.','warn');return}
+  const loc=document.getElementById('newLoc').value;
+  let status='salle';if(loc.includes('éserve'))status='reserve';else if(loc.includes('estau'))status='restauration';
+  const id='MT-'+String(state.nextId++).padStart(4,'0');
+  const o={id,name,author:document.getElementById('newAuthor').value.trim(),cat:document.getElementById('newCat').value.trim(),dim:document.getElementById('newDim').value.trim(),mat:document.getElementById('newMat').value.trim(),numInv:document.getElementById('newNumInv').value.trim(),valeur:parseFloat(document.getElementById('newValeur').value)||0,etat:document.getElementById('newEtat').value,lien:document.getElementById('newLien').value.trim(),loc,status,resp:document.getElementById('newResp').value,notes:document.getElementById('newNotes').value.trim(),createdAt:Date.now()};
+  showLoading('Enregistrement...');
+  await sb('POST','oeuvres',oeuvreToDb(o)).catch(e=>{toast('Erreur: '+e.message,'error');console.error(e)});
+  await addHistory('neutral',`«${name}» enregistrée (${id})`,'Création · '+(o.resp||'—'));
+  await saveConfig();
+  hideLoading();
+  state.oeuvres.push(o);
+  ['newName','newAuthor','newCat','newDim','newMat','newNumInv','newValeur','newLien','newNotes'].forEach(f=>{const el=document.getElementById(f);if(el)el.value=''});
+  showBarcode(id);renderDashboard();toast('Oeuvre créée : '+id,'success');
+}
+
+async function deleteOeuvre(id){
+  if(!confirm('Supprimer cette oeuvre ?'))return;
+  await sb('DELETE','oeuvres','',`?id=eq.${id}`).catch(console.error);
+  state.oeuvres=state.oeuvres.filter(o=>o.id!==id);
+  state.portique.authorized=state.portique.authorized.filter(a=>a.id!==id);
+  await saveConfig();
+  renderOeuvres();renderDashboard();toast('Supprimé','warn');
+}
+
+function openMoveFromOeuvre(id){goTab('scan');const o=state.oeuvres.find(x=>x.id===id);if(o)setTimeout(()=>applyScannedOeuvre(o),300)}
+
+// ─── FICHE ────────────────────────────────────────────────────────────────
+let currentFicheId=null;
+function showFiche(id){
+  const o=state.oeuvres.find(x=>x.id===id);if(!o)return;
+  currentFicheId=id;
+  document.getElementById('ficheTitle').textContent='Fiche — '+o.name;
+  const etatLabel={bon:'Bon état',moyen:'État moyen',mauvais:'Mauvais état'}[o.etat]||'—';
+  const etatClass={bon:'etat-bon',moyen:'etat-moyen',mauvais:'etat-mauvais'}[o.etat]||'';
+  document.getElementById('ficheContent').innerHTML=`
+    <div class="fiche-section"><div class="fiche-section-title">Identification</div><div class="fiche-grid">
+      <div class="fiche-row"><div class="fiche-label">Identifiant app</div><div class="fiche-value mono">${o.id}</div></div>
+      <div class="fiche-row"><div class="fiche-label">N° inventaire</div><div class="fiche-value mono">${o.numInv||'—'}</div></div>
+      <div class="fiche-row"><div class="fiche-label">Auteur</div><div class="fiche-value">${o.author||'—'}</div></div>
+      <div class="fiche-row"><div class="fiche-label">Catégorie</div><div class="fiche-value">${o.cat||'—'}</div></div>
+      <div class="fiche-row"><div class="fiche-label">Dimensions</div><div class="fiche-value">${o.dim||'—'}</div></div>
+      <div class="fiche-row"><div class="fiche-label">Matériaux</div><div class="fiche-value">${o.mat||'—'}</div></div>
+    </div></div>
+    <div class="fiche-section"><div class="fiche-section-title">Conservation</div><div class="fiche-grid">
+      <div class="fiche-row"><div class="fiche-label">État</div><span class="etat-conserv ${etatClass}">${etatLabel}</span></div>
+      <div class="fiche-row"><div class="fiche-label">Valeur assurée</div><div class="fiche-value">${o.valeur?new Intl.NumberFormat('fr-CH',{style:'currency',currency:'CHF',maximumFractionDigits:0}).format(o.valeur):'—'}</div></div>
+    </div>${o.notes?`<div style="margin-top:8px"><div class="fiche-label">Notes</div><div style="font-size:13px;margin-top:3px">${o.notes}</div></div>`:''}</div>
+    <div class="fiche-section"><div class="fiche-section-title">Localisation</div><div class="fiche-grid">
+      <div class="fiche-row"><div class="fiche-label">Lieu</div><div class="fiche-value">${o.loc}</div></div>
+      <div class="fiche-row"><div class="fiche-label">Statut</div><span class="pill p-${o.status}" style="margin-top:3px;display:inline-block">${statusLabel(o.status)}</span></div>
+      <div class="fiche-row"><div class="fiche-label">Responsable</div><div class="fiche-value">${o.resp||'—'}</div></div>
+    </div></div>
+    ${o.lien?`<div class="fiche-section"><div class="fiche-section-title">Documentation</div><a href="${o.lien}" target="_blank" class="link-btn">📄 Ouvrir la fiche / PDF</a></div>`:''}`;
+  openModal('ficheModal');
+}
+function editFiche(){
+  const o=state.oeuvres.find(x=>x.id===currentFicheId);if(!o)return;
+  closeModal('ficheModal');
+  document.getElementById('editFicheContent').innerHTML=`
+    <div class="form-row"><div class="field"><label>Nom</label><input type="text" id="ef_name" value="${o.name}"></div><div class="field"><label>Auteur</label><input type="text" id="ef_author" value="${o.author||''}"></div></div>
+    <div class="form-row three"><div class="field"><label>Catégorie</label><input type="text" id="ef_cat" value="${o.cat||''}"></div><div class="field"><label>Dimensions</label><input type="text" id="ef_dim" value="${o.dim||''}"></div><div class="field"><label>Matériaux</label><input type="text" id="ef_mat" value="${o.mat||''}"></div></div>
+    <div class="form-row"><div class="field"><label>N° inventaire</label><input type="text" id="ef_numInv" value="${o.numInv||''}"></div><div class="field"><label>Valeur (CHF)</label><input type="number" id="ef_valeur" value="${o.valeur||''}"></div></div>
+    <div class="form-row"><div class="field"><label>État</label><select id="ef_etat"><option value="bon" ${o.etat==='bon'?'selected':''}>Bon</option><option value="moyen" ${o.etat==='moyen'?'selected':''}>Moyen</option><option value="mauvais" ${o.etat==='mauvais'?'selected':''}>Mauvais</option></select></div><div class="field"><label>Lien PDF</label><input type="url" id="ef_lien" value="${o.lien||''}" placeholder="https://..."></div></div>
+    <div class="form-row full"><div class="field"><label>Notes</label><textarea id="ef_notes">${o.notes||''}</textarea></div></div>`;
+  openModal('editFicheModal');
+}
+async function saveFiche(){
+  const o=state.oeuvres.find(x=>x.id===currentFicheId);if(!o)return;
+  o.name=document.getElementById('ef_name').value.trim()||o.name;
+  o.author=document.getElementById('ef_author').value.trim();
+  o.cat=document.getElementById('ef_cat').value.trim();
+  o.dim=document.getElementById('ef_dim').value.trim();
+  o.mat=document.getElementById('ef_mat').value.trim();
+  o.numInv=document.getElementById('ef_numInv').value.trim();
+  o.valeur=parseFloat(document.getElementById('ef_valeur').value)||0;
+  o.etat=document.getElementById('ef_etat').value;
+  o.lien=document.getElementById('ef_lien').value.trim();
+  o.notes=document.getElementById('ef_notes').value.trim();
+  await sb('PATCH','oeuvres',oeuvreToDb(o),`?id=eq.${o.id}`).catch(console.error);
+  closeModal('editFicheModal');renderOeuvres();renderDashboard();toast('Fiche mise à jour','success');
+}
+
+// ─── MOVE ─────────────────────────────────────────────────────────────────
+async function confirmMove(){
+  const id=document.getElementById('scanId').value.trim(),dest=document.getElementById('destSelect').value,resp=document.getElementById('respSelect').value,status=document.getElementById('statusSelect').value,note=document.getElementById('moveNote').value.trim();
+  if(!id){toast('Aucune oeuvre.','warn');return}if(!dest){toast('Choisissez une destination.','warn');return}
+  const o=state.oeuvres.find(x=>x.id===id);if(!o)return;
+  const oldLoc=o.loc;o.loc=dest;o.status=status;if(resp)o.resp=resp;
+  showLoading('Enregistrement du mouvement...');
+  await sb('PATCH','oeuvres',{loc:dest,status,resp:resp||o.resp},`?id=eq.${id}`).catch(console.error);
+  await addHistory('ok',`«${o.name}» : ${oldLoc} → ${dest}`,(resp||o.resp||'—')+(note?' · '+note:''));
+  if(status==='transit'){
+    const alert={id:'a'+Date.now(),type:'amber',title:'Transit en cours',detail:`«${o.name}» → ${dest}. Confirmez l'arrivée.`,ts:Date.now()};
+    await sb('POST','alerts',alert).catch(console.error);
+    state.alerts.push(alert);
+  }
+  hideLoading();
+  document.getElementById('scanId').value='';document.getElementById('scannedBadge').classList.remove('show');document.getElementById('moveForm').style.display='none';document.getElementById('moveNote').value='';document.getElementById('destSelect').value='';
+  if(html5QrCode&&cameraRunning)html5QrCode.resume();
+  renderDashboard();toast('Mouvement : '+o.name,'success');
+}
+
+// ─── HISTORY ──────────────────────────────────────────────────────────────
+async function addHistory(type,text,who){
+  const h={type,text,who,ts:Date.now()};
+  await sb('POST','history',h).catch(console.error);
+  state.history.push(h);
+}
+function renderHistory(){
+  const q=(document.getElementById('histSearch')?.value||'').toLowerCase();
+  let list=[...state.history].reverse();
+  if(q)list=list.filter(h=>h.text.toLowerCase().includes(q)||h.who.toLowerCase().includes(q));
+  const el=document.getElementById('fullHistory');
+  if(!list.length){el.innerHTML='<div style="padding:14px;font-size:13px;color:var(--text3)">Aucun mouvement.</div>';return}
+  el.innerHTML=list.map(h=>`<div class="history-item"><div class="h-dot ${h.type}"></div><div class="h-body"><div class="h-action">${h.text}</div><div class="h-who">${h.who}</div></div><div class="h-time">${formatTime(h.ts)}</div></div>`).join('');
+}
+
+// ─── PRÊTS ────────────────────────────────────────────────────────────────
+function openNewPret(){
+  document.getElementById('pretModalTitle').textContent='Nouveau prêt inter-institution';
+  const opts=state.oeuvres.map(o=>`<option value="${o.id}">${o.id} — ${o.name}</option>`).join('');
+  document.getElementById('pretModalContent').innerHTML=`
+    <div class="form-row"><div class="field"><label>Institution *</label><input type="text" id="p_institution" placeholder="Musée du Louvre, Paris"></div><div class="field"><label>Contact</label><input type="text" id="p_contact" placeholder="Nom — email"></div></div>
+    <div class="form-row full"><div class="field"><label>Oeuvres *</label><select id="p_oeuvres" multiple style="min-height:80px">${opts}</select><small style="font-size:11px;color:var(--text2);display:block;margin-top:3px">Ctrl+clic pour plusieurs</small></div></div>
+    <div class="form-row"><div class="field"><label>Transporteur</label><input type="text" id="p_transporteur" placeholder="Art Transit SA"></div><div class="field"><label>Assurance</label><input type="text" id="p_assurance" placeholder="AXA Art — Police n°..."></div></div>
+    <div class="sec" style="margin-top:12px">Rapport d'état au départ</div>
+    <div class="form-row full"><div class="field"><label>État des oeuvres au départ</label><textarea id="p_etatDepart" placeholder="Décrire l'état de chaque oeuvre..."></textarea></div></div>
+    <div class="form-row full"><div class="field"><label>Conditions de transport</label><input type="text" id="p_conditions" placeholder="T° 18-22°C, HR 45-55%..."></div></div>
+    <div class="form-row full"><div class="field"><label>Notes</label><textarea id="p_notes" placeholder="Clauses spéciales..."></textarea></div></div>`;
+  openModal('pretModal');
+}
+async function savePret(){
+  const sel=document.getElementById('p_oeuvres');
+  const oeuvresIds=Array.from(sel.selectedOptions).map(o=>o.value);
+  if(!document.getElementById('p_institution').value.trim()||!oeuvresIds.length){toast('Institution et oeuvres requises.','warn');return}
+  const pid='PT-'+String(state.nextPretId++).padStart(3,'0');
+  const pret={id:pid,institution:document.getElementById('p_institution').value.trim(),contact:document.getElementById('p_contact').value.trim(),depart:document.getElementById('p_depart').value,retour:document.getElementById('p_retour').value,oeuvresIds,transporteur:document.getElementById('p_transporteur').value.trim(),assurance:document.getElementById('p_assurance').value.trim(),etatDepart:document.getElementById('p_etatDepart').value.trim(),etatRetour:'',conditions:document.getElementById('p_conditions').value.trim(),notes:document.getElementById('p_notes').value.trim(),statut:'preparation',createdAt:Date.now()};
+  showLoading('Enregistrement du prêt...');
+  await sb('POST','prets',pretToDb(pret)).catch(console.error);
+  for(const id of oeuvresIds){const o=state.oeuvres.find(x=>x.id===id);if(o){o.status='pret';o.loc='Prêt — '+pret.institution;await sb('PATCH','oeuvres',{status:'pret',loc:o.loc},`?id=eq.${id}`).catch(console.error)}}
+  await addHistory('ok',`Prêt ${pid} créé — ${pret.institution}`,'Système');
+  await saveConfig();hideLoading();state.prets.unshift(pret);
+  closeModal('pretModal');renderPrets();renderDashboard();toast('Prêt créé : '+pid,'success');
+}
+function renderPrets(){
+  const el=document.getElementById('pretList');
+  if(!state.prets.length){el.innerHTML='<div class="no-results">Aucun prêt enregistré.</div>';return}
+  const sL={preparation:'En préparation',enCours:'En cours',retour:'Retour en attente',clos:'Clôturé'};
+  el.innerHTML=state.prets.map(p=>{
+    const noms=p.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?o.name:id}).join(', ');
+    return`<div class="pret-card" onclick="openPretDetail('${p.id}')"><div class="pret-header"><div class="pret-institution">${p.institution}</div><span class="pret-status ps-${p.statut}">${sL[p.statut]||p.statut}</span></div><div class="pret-oeuvres">${noms}</div><div class="pret-footer"><span style="font-size:11px;color:var(--text2)">${p.depart||'—'} → ${p.retour||'—'}</span>${p.etatDepart?'<span class="etat-badge etat-ok">État départ ✓</span>':'<span class="etat-badge etat-missing">État départ —</span>'}${p.etatRetour?'<span class="etat-badge etat-ok">Retour ✓</span>':'<span class="etat-badge etat-missing">Retour —</span>'}<button class="btn-sm" onclick="event.stopPropagation();changePretStatut('${p.id}')" style="margin-left:auto">Avancer</button></div></div>`;
+  }).join('');
+}
+function openPretDetail(id){
+  const p=state.prets.find(x=>x.id===id);if(!p)return;
+  document.getElementById('pretDetailTitle').textContent=p.id+' — '+p.institution;
+  document.getElementById('pretDetailContent').innerHTML=`<div class="fiche-section"><div class="fiche-section-title">Informations</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Institution</div><div class="fiche-value">${p.institution}</div></div><div class="fiche-row"><div class="fiche-label">Contact</div><div class="fiche-value">${p.contact||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Départ</div><div class="fiche-value">${p.depart||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Retour prévu</div><div class="fiche-value">${p.retour||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Transporteur</div><div class="fiche-value">${p.transporteur||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Assurance</div><div class="fiche-value">${p.assurance||'—'}</div></div></div></div><div class="fiche-section"><div class="fiche-section-title">Oeuvres prêtées</div>${p.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?`<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">${o.id} — ${o.name}</div>`:''}).join('')}</div><div class="fiche-section"><div class="fiche-section-title">État au départ</div><div style="font-size:13px">${p.etatDepart||'<span style="color:var(--text3)">Non renseigné</span>'}</div></div><div class="fiche-section"><div class="fiche-section-title">État au retour</div><textarea id="etatRetourInput" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;min-height:60px" placeholder="État des oeuvres au retour...">${p.etatRetour||''}</textarea><button class="btn-secondary" onclick="saveEtatRetour('${p.id}')" style="width:auto;padding:6px 14px;margin-top:6px">Enregistrer</button></div>${p.conditions?`<div class="fiche-section"><div class="fiche-section-title">Conditions</div><div style="font-size:13px">${p.conditions}</div></div>`:''}${p.notes?`<div class="fiche-section"><div class="fiche-section-title">Notes</div><div style="font-size:13px">${p.notes}</div></div>`:''}`;
+  openModal('pretDetailModal');
+}
+async function saveEtatRetour(id){const p=state.prets.find(x=>x.id===id);if(!p)return;p.etatRetour=document.getElementById('etatRetourInput').value.trim();await sb('PATCH','prets',{etat_retour:p.etatRetour},`?id=eq.${id}`).catch(console.error);toast('Rapport retour enregistré','success')}
+async function changePretStatut(id){const p=state.prets.find(x=>x.id===id);if(!p)return;const order=['preparation','enCours','retour','clos'];const idx=order.indexOf(p.statut);if(idx<order.length-1)p.statut=order[idx+1];if(p.statut==='clos'){for(const oid of p.oeuvresIds){const o=state.oeuvres.find(x=>x.id===oid);if(o){o.status='reserve';o.loc='Réserve 1';await sb('PATCH','oeuvres',{status:'reserve',loc:'Réserve 1'},`?id=eq.${oid}`).catch(console.error)}}}await sb('PATCH','prets',{statut:p.statut},`?id=eq.${id}`).catch(console.error);renderPrets();renderDashboard();toast('Statut mis à jour','success')}
+
+function openNewTransit(){const opts=state.oeuvres.map(o=>`<option value="${o.id}">${o.id} — ${o.name}</option>`).join('');document.getElementById('transitModalContent').innerHTML=`<div class="form-row"><div class="field"><label>Départ *</label><input type="text" id="t_from" placeholder="Réserve 1, Musée X"></div><div class="field"><label>Destination *</label><input type="text" id="t_to" placeholder="Salle A, Musée Y"></div></div><div class="form-row"><div class="field"><label>Heure départ</label><input type="datetime-local" id="t_depart"></div><div class="field"><label>Arrivée estimée</label><input type="datetime-local" id="t_arrivee"></div></div><div class="form-row full"><div class="field"><label>Oeuvres *</label><select id="t_oeuvres" multiple style="min-height:70px">${opts}</select></div></div><div class="form-row"><div class="field"><label>Transporteur</label><input type="text" id="t_transporteur" placeholder="Art Transit SA"></div><div class="field"><label>Véhicule</label><input type="text" id="t_vehicule" placeholder="GE 123 456"></div></div><div class="form-row three"><div class="field"><label>Température</label><input type="text" id="t_temp" placeholder="18–22 °C"></div><div class="field"><label>Humidité</label><input type="text" id="t_hum" placeholder="45–55 %"></div><div class="field"><label>Emballage</label><input type="text" id="t_emballage" placeholder="Caisse climatisée"></div></div><div class="form-row full"><div class="field"><label>Instructions</label><textarea id="t_instructions" placeholder="Ne pas incliner..."></textarea></div></div>`;openModal('transitModal')}
+async function saveTransit(){const sel=document.getElementById('t_oeuvres');const oeuvresIds=Array.from(sel.selectedOptions).map(o=>o.value);const from=document.getElementById('t_from').value.trim(),to=document.getElementById('t_to').value.trim();if(!from||!to||!oeuvresIds.length){toast('Départ, destination et oeuvres requis.','warn');return}const tid='TR-'+String(state.nextTransitId++).padStart(3,'0');const transit={id:tid,from,to,depart:document.getElementById('t_depart').value,arrivee:document.getElementById('t_arrivee').value,oeuvresIds,transporteur:document.getElementById('t_transporteur').value.trim(),vehicule:document.getElementById('t_vehicule').value.trim(),temp:document.getElementById('t_temp').value.trim(),hum:document.getElementById('t_hum').value.trim(),emballage:document.getElementById('t_emballage').value.trim(),instructions:document.getElementById('t_instructions').value.trim(),statut:'planifie',checkpoints:[{label:'Chargement confirmé',done:false,ts:null},{label:'En route',done:false,ts:null},{label:'Arrivée destination',done:false,ts:null},{label:'Déchargement et vérification',done:false,ts:null}],createdAt:Date.now()};showLoading('Création du transit...');await sb('POST','transits',transitToDb(transit)).catch(console.error);for(const id of oeuvresIds){const o=state.oeuvres.find(x=>x.id===id);if(o){o.status='transit';o.loc='Transit → '+to;await sb('PATCH','oeuvres',{status:'transit',loc:o.loc},`?id=eq.${id}`).catch(console.error)}}await addHistory('ok',`Transit ${tid} créé : ${from} → ${to}`,'Système');await saveConfig();hideLoading();state.transits.unshift(transit);closeModal('transitModal');renderTransits();renderDashboard();toast('Transit créé : '+tid,'success')}
+function renderTransits(){const el=document.getElementById('transitList');if(!state.transits.length){el.innerHTML='<div class="no-results">Aucun transit enregistré.</div>';return}const sL={planifie:'Planifié',enRoute:'En route',arrive:'Arrivé',retard:'Retard'};el.innerHTML=state.transits.map(t=>{const noms=t.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?o.name:id}).join(', ');const done=(t.checkpoints||[]).filter(c=>c.done).length;return`<div class="transit-card" onclick="openTransitDetail('${t.id}')"><div class="transit-header"><div class="transit-title">${t.id}</div><span class="t-status ts-${t.statut}">${sL[t.statut]||t.statut}</span></div><div class="transit-route"><span>${t.from}</span><span class="transit-arrow">→</span><span>${t.to}</span></div><div class="transit-meta"><span class="transit-meta-item">📦 ${noms}</span>${t.transporteur?`<span class="transit-meta-item">🚚 ${t.transporteur}</span>`:''}${t.temp?`<span class="transit-meta-item">🌡 ${t.temp}</span>`:''}${t.hum?`<span class="transit-meta-item">💧 ${t.hum}</span>`:''}  <span class="transit-meta-item" style="color:var(--accent)">✓ ${done}/${(t.checkpoints||[]).length}</span></div></div>`}).join('')}
+function openTransitDetail(id){const t=state.transits.find(x=>x.id===id);if(!t)return;document.getElementById('transitDetailTitle').textContent=t.id+' — '+t.from+' → '+t.to;const cps=(t.checkpoints||[]);document.getElementById('transitDetailContent').innerHTML=`<div class="fiche-section"><div class="fiche-section-title">Informations</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Départ</div><div class="fiche-value">${t.from}</div></div><div class="fiche-row"><div class="fiche-label">Destination</div><div class="fiche-value">${t.to}</div></div><div class="fiche-row"><div class="fiche-label">Transporteur</div><div class="fiche-value">${t.transporteur||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Véhicule</div><div class="fiche-value">${t.vehicule||'—'}</div></div></div></div><div class="fiche-section"><div class="fiche-section-title">Conditions</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Température</div><div class="fiche-value">${t.temp||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Humidité</div><div class="fiche-value">${t.hum||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Emballage</div><div class="fiche-value">${t.emballage||'—'}</div></div></div>${t.instructions?`<div style="margin-top:8px"><div class="fiche-label">Instructions</div><div style="font-size:13px;margin-top:3px">${t.instructions}</div></div>`:''}</div><div class="fiche-section"><div class="fiche-section-title">Oeuvres</div>${t.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?`<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">${o.id} — ${o.name}</div>`:''}).join('')}</div><div class="fiche-section"><div class="fiche-section-title">Checkpoints</div>${cps.map((c,i)=>`<div class="checkpoint-row"><div class="cp-dot ${c.done?'done':i===cps.findIndex(x=>!x.done)?'active':'pending'}"></div><div class="cp-label">${c.label}</div><div class="cp-time">${c.ts?formatTime(c.ts):''}</div>${!c.done?`<button class="cp-scan-btn" onclick="validateCheckpoint('${t.id}',${i})">Valider</button>`:'<span style="font-size:11px;color:var(--green)">✓</span>'}</div>`).join('')}<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn-sm" onclick="changeTransitStatut('${t.id}','enRoute')">En route</button><button class="btn-sm" onclick="changeTransitStatut('${t.id}','arrive')">Arrivé</button><button class="btn-sm danger" onclick="changeTransitStatut('${t.id}','retard')">Retard</button></div></div>`;openModal('transitDetailModal')}
+async function validateCheckpoint(tid,idx){const t=state.transits.find(x=>x.id===tid);if(!t)return;t.checkpoints[idx].done=true;t.checkpoints[idx].ts=Date.now();if(idx===t.checkpoints.length-1){t.statut='arrive';for(const id of t.oeuvresIds){const o=state.oeuvres.find(x=>x.id===id);if(o){o.status='salle';o.loc=t.to;await sb('PATCH','oeuvres',{status:'salle',loc:t.to},`?id=eq.${id}`).catch(console.error)}}await addHistory('ok',`Transit ${tid} terminé — arrivée à ${t.to}`,'Système')}await sb('PATCH','transits',{checkpoints:t.checkpoints,statut:t.statut},`?id=eq.${tid}`).catch(console.error);openTransitDetail(tid);renderTransits();renderDashboard();toast('Checkpoint validé','success')}
+async function changeTransitStatut(tid,st){const t=state.transits.find(x=>x.id===tid);if(!t)return;t.statut=st;if(st==='retard'){const alert={id:'tr'+Date.now(),type:'red',title:'Retard transit',detail:`Transit ${tid} : retard signalé (${t.from} → ${t.to}).`,ts:Date.now()};await sb('POST','alerts',alert).catch(console.error);state.alerts.push(alert)}await sb('PATCH','transits',{statut:st},`?id=eq.${tid}`).catch(console.error);openTransitDetail(tid);renderTransits();renderDashboard();toast('Statut mis à jour','success')}
+
+async function togglePortique(){state.portique.active=!state.portique.active;await saveConfig();renderPortique();toast(state.portique.active?'Portique activé':'Portique désactivé',state.portique.active?'success':'warn')}
+function renderPortique(){if(!state.portique)state.portique={active:false,authorized:[],log:[]};const p=state.portique;const led=document.getElementById('portiqueLed'),lbl=document.getElementById('portiqueLabel'),sub=document.getElementById('portiqueSub'),btn=document.getElementById('portiqueToggleBtn');if(p.active){led.className='portique-led ok';lbl.textContent='Portique actif';sub.textContent='Surveillance en cours';btn.textContent='Désactiver';btn.className='portique-toggle-btn stop'}else{led.className='portique-led standby';lbl.textContent='Portique inactif';sub.textContent='Cliquez Activer pour surveiller';btn.textContent='Activer';btn.className='portique-toggle-btn start'}document.getElementById('authList').innerHTML=(p.authorized||[]).length?(p.authorized).map((a,i)=>`<div class="auth-item"><span class="auth-item-id">${a.id}</span><span class="auth-item-name">${a.name}</span><button class="auth-remove" onclick="removeAuth(${i})">✕</button></div>`).join(''):'<div class="no-auth">Aucune oeuvre autorisée.</div>';document.getElementById('authSelect').innerHTML='<option value="">Ajouter...</option>'+state.oeuvres.filter(o=>!(p.authorized||[]).find(a=>a.id===o.id)).map(o=>`<option value="${o.id}">${o.id} — ${o.name}</option>`).join('');const log=p.log||[];document.getElementById('portiqueLog').innerHTML=log.length?[...log].reverse().slice(0,20).map(l=>`<div class="log-item"><div class="log-dot ${l.type}"></div><div class="log-action">${l.text}</div><div class="log-time">${formatTime(l.ts)}</div></div>`).join(''):'<div style="font-size:12px;color:var(--text3);padding:10px 0;text-align:center">Aucun passage.</div>';document.getElementById('simBtns').innerHTML=state.oeuvres.map(o=>{const isA=(p.authorized||[]).find(a=>a.id===o.id);return`<button class="sim-btn ${isA?'ok':'alarm'}" onclick="simulatePassage('${o.id}')">${isA?'✓':'⚠'} ${o.name}</button>`}).join('')||'<span style="font-size:12px;color:var(--text3)">Aucune oeuvre.</span>'}
+async function addAuth(){const sel=document.getElementById('authSelect');const id=sel.value;if(!id)return;const o=state.oeuvres.find(x=>x.id===id);if(!o)return;if(!state.portique.authorized)state.portique.authorized=[];state.portique.authorized.push({id:o.id,name:o.name,ts:Date.now()});await saveConfig();renderPortique();toast(o.name+' autorisée','success')}
+async function removeAuth(i){state.portique.authorized.splice(i,1);await saveConfig();renderPortique()}
+async function simulatePassage(id){if(!state.portique.active){toast('Portique inactif.','warn');return}const o=state.oeuvres.find(x=>x.id===id);if(!o)return;const isAuth=(state.portique.authorized||[]).find(a=>a.id===id);const ts=Date.now();if(!state.portique.log)state.portique.log=[];if(isAuth){state.portique.log.push({type:'ok',text:`✓ Passage autorisé : ${o.name}`,ts});await addHistory('ok',`Passage portique : «${o.name}»`,'Portique · RFID/NFC');await saveConfig();renderPortique();renderDashboard();beepOk();toast('Passage autorisé : '+o.name,'success')}else{state.portique.log.push({type:'alarm',text:`⚠ ALARME : ${o.name}`,ts});await addHistory('alert',`ALARME portique : «${o.name}» — non autorisé !`,'Portique · RFID/NFC');const alert={id:'p'+Date.now(),type:'red',title:'Alarme portique',detail:`«${o.name}» a déclenché le portique sans autorisation.`,ts};await sb('POST','alerts',alert).catch(console.error);state.alerts.push(alert);await saveConfig();renderPortique();renderDashboard();triggerAlarm(o.name)}}
+function triggerAlarm(name){document.getElementById('alarmOeuvreName').textContent=name;document.getElementById('alarmOverlay').classList.add('active');document.getElementById('portiqueLed').className='portique-led alarm';startAlarmLoop();if(navigator.vibrate)navigator.vibrate([500,200,500,200,500])}
+function dismissAlarm(){document.getElementById('alarmOverlay').classList.remove('active');stopAlarmLoop();if(state.portique.active)document.getElementById('portiqueLed').className='portique-led ok';toast('Alarme acquittée','warn')}
+
+function showBarcode(id){const o=state.oeuvres.find(x=>x.id===id);if(!o)return;try{JsBarcode('#barcodesvg',o.id,{format:'CODE128',width:2,height:55,displayValue:true,fontSize:13,margin:8})}catch(e){}document.getElementById('barcodeIdText').textContent=o.name;openModal('barcodeModal')}
+function printBarcode(){const svg=document.getElementById('barcodesvg');const name=document.getElementById('barcodeIdText').textContent;const svgData=new XMLSerializer().serializeToString(svg);const w=window.open('','_blank');w.document.write(`<html><body style="text-align:center;font-family:sans-serif;padding:40px"><p style="font-size:14px;font-weight:bold;margin-bottom:12px">${name}</p>${svgData}<p style="font-size:11px;color:#888;margin-top:12px">MuséoTrack</p><script>window.print();window.close();<\/script></body></html>`)}
+
+let html5QrCode=null,currentMode='camera',cameraRunning=false;
+function setMode(mode){currentMode=mode;document.getElementById('mode-camera').classList.toggle('active',mode==='camera');document.getElementById('mode-manual').classList.toggle('active',mode==='manual');if(mode==='camera'){document.getElementById('manual-container').classList.remove('active');startCamera()}else{stopCamera();document.getElementById('camera-container').classList.remove('active');document.getElementById('manual-container').classList.add('active')}}
+function startCameraIfMode(){if(currentMode==='camera')startCamera();else document.getElementById('manual-container').classList.add('active')}
+function startCamera(){document.getElementById('permBox').classList.remove('show');document.getElementById('camera-container').classList.add('active');if(!html5QrCode)html5QrCode=new Html5Qrcode('qr-reader');if(cameraRunning)return;Html5Qrcode.getCameras().then(cameras=>{if(!cameras||!cameras.length){showPermError();return}const cam=cameras.find(c=>/back|rear|environment/i.test(c.label))||cameras[cameras.length-1];html5QrCode.start({deviceId:{exact:cam.id}},{fps:10,qrbox:{width:180,height:180},aspectRatio:1.0},onQRSuccess,()=>{}).then(()=>{cameraRunning=true}).catch(()=>{html5QrCode.start({facingMode:'environment'},{fps:10,qrbox:{width:180,height:180}},onQRSuccess,()=>{}).then(()=>{cameraRunning=true}).catch(showPermError)})}).catch(showPermError)}
+function showPermError(){document.getElementById('permBox').classList.add('show');document.getElementById('camera-container').classList.remove('active')}
+function stopCamera(){if(html5QrCode&&cameraRunning){html5QrCode.stop().catch(()=>{});cameraRunning=false}document.getElementById('camera-container').classList.remove('active')}
+function onQRSuccess(text){const id=text.trim().toUpperCase();const o=state.oeuvres.find(x=>x.id===id);if(!o){toast('Code non reconnu : '+id,'warn');return}if(html5QrCode&&cameraRunning){html5QrCode.pause();setTimeout(()=>{if(html5QrCode&&cameraRunning)html5QrCode.resume()},3000)}applyScannedOeuvre(o);beepOk()}
+function applyScannedOeuvre(o){document.getElementById('scanId').value=o.id;document.getElementById('scannedName').textContent=o.name;document.getElementById('scannedBadge').classList.add('show');document.getElementById('moveForm').style.display='block';document.getElementById('moveForm').scrollIntoView({behavior:'smooth',block:'nearest'});toast('✓ '+o.name,'success')}
+function onScanIdInput(val){const o=state.oeuvres.find(x=>x.id===val);if(o)applyScannedOeuvre(o);else{document.getElementById('scannedBadge').classList.remove('show');document.getElementById('moveForm').style.display='none'}}
+function applyManualId(){const val=document.getElementById('manualId').value.trim().toUpperCase();onScanIdInput(val);if(!state.oeuvres.find(x=>x.id===val))toast('Identifiant non trouvé','warn')}
+
+function renderSettings(){document.getElementById('respList').innerHTML=state.responsables.map((r,i)=>`<li class="resp-item"><span>${r}</span><button class="btn-sm danger" onclick="removeResp(${i})">Supprimer</button></li>`).join('');syncRespSelects()}
+function syncRespSelects(){['respSelect','newResp'].forEach(id=>{const sel=document.getElementById(id);if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">-- Choisir --</option>'+state.responsables.map(r=>`<option value="${r}">${r}</option>`).join('');sel.value=cur})}
+async function addResponsable(){const val=document.getElementById('newRespInput').value.trim();if(!val)return;await sb('POST','responsables',{name:val}).catch(console.error);state.responsables.push(val);document.getElementById('newRespInput').value='';renderSettings();toast(val+' ajouté','success')}
+async function removeResp(i){const name=state.responsables[i];await sb('DELETE','responsables','',`?name=eq.${encodeURIComponent(name)}`).catch(console.error);state.responsables.splice(i,1);renderSettings()}
+function exportData(){const blob=new Blob([JSON.stringify({oeuvres:state.oeuvres,history:state.history,prets:state.prets,transits:state.transits},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='museotracK_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Export téléchargé','success')}
+async function confirmReset(){if(!confirm('Vider toutes les tables Supabase ? Irréversible.'))return;showLoading('Réinitialisation...');for(const t of ['oeuvres','history','alerts','prets','transits','responsables','config']){try{await sb('DELETE',t,'','?created_at=gte.2000-01-01')}catch(e){try{await sb('DELETE',t,'','?ts=gte.0')}catch(e2){try{await sb('DELETE',t,'','?id=gte.0')}catch(e3){try{await sb('DELETE',t,'','?key=gte.a')}catch(e4){}}}}}hideLoading();location.reload()}
+
+function statusLabel(s){return{salle:'En salle',transit:'Transit',reserve:'Réserve',restauration:'Restauration',pret:'En prêt'}[s]||s}
+function formatTime(ts){const d=new Date(ts),now=new Date(),diff=now-d;if(diff<60000)return"À l'instant";if(diff<3600000)return Math.floor(diff/60000)+'min';if(diff<86400000)return Math.floor(diff/3600000)+'h';if(diff<172800000)return'Hier';return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}
+
+setInterval(async()=>{if(!document.getElementById('togRealtime')?.checked)return;try{const [oeuvres,alerts]=await Promise.all([sb('GET','oeuvres','','?order=created_at.asc'),sb('GET','alerts','','?order=ts.desc')]);state.oeuvres=oeuvres.map(dbToOeuvre);state.alerts=alerts;renderDashboard();if(document.getElementById('panel-oeuvres').classList.contains('active'))renderOeuvres()}catch(e){}},30000);
+
+loadAll();
+document.getElementById('tab-scan').addEventListener('click',()=>setTimeout(startCameraIfMode,100));
+</script>
+</body>
+</html>
