@@ -591,6 +591,11 @@ main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto}
 <div id="toast"></div>
 
 <script>
+// ── SUPABASE CLIENT ───────────────────────────────────────────────────────
+const SB_URL = 'https://xjtntzgrwsnidtbvesgj.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqdG50emdyd3NuaWR0YnZlc2dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjY0NzMsImV4cCI6MjA5NDkwMjQ3M30.Hcp54T0jLlroUwIcSjy1ML-nil2m6tpAyjQelKHj6UY';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
 // ── SESSION STATE ─────────────────────────────────────────────────────────
 let currentUser = null, currentProfile = null, currentOrg = null, orgId = null;
 
