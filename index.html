@@ -1057,13 +1057,22 @@ setInterval(async()=>{
 
 // ── BOOTSTRAP ─────────────────────────────────────────────────────────────
 (async()=>{
-  const {data:{session}}=await sb.auth.getSession();
-  if(session?.user){
-    await initApp(session.user);
-  } else {
-    document.getElementById('authScreen').style.display='flex';
-    showAuthView('viewLogin');
+  // Show auth screen immediately, don't wait
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  document.getElementById('authScreen').style.display='flex';
+  showAuthView('viewLogin');
+  
+  // Then check if already logged in
+  try {
+    const {data:{session}} = await sb.auth.getSession();
+    if(session?.user){
+      document.getElementById('authScreen').style.display='none';
+      await initApp(session.user);
+    }
+  } catch(e) {
+    console.error('Session check failed:', e);
   }
+  
   document.getElementById('tab-scan').addEventListener('click',()=>setTimeout(startCameraIfMode,100));
 })();
 </script>
