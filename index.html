@@ -1111,11 +1111,15 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 
 // ── USER MENU ─────────────────────────────────────────────────────────────
 function openUserMenu(){
-  document.getElementById('userMenuTitle').textContent=currentProfile?.full_name||'Mon compte';
-  document.getElementById('userMenuContent').innerHTML=`
-    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">${currentUser?.email||''}</div>
-    <span class="role-badge ${roleClass[currentProfile?.role]||'role-gardien'}">${roleLabel[currentProfile?.role]||''}</span>
-    <div style="font-size:12px;color:var(--text3);margin-top:10px">Institution : ${currentOrg?.name||'—'}</div>`;
+  const name = currentProfile?.full_name || 'Mon compte';
+  const email = currentUser?.email || '';
+  const role = currentProfile?.role || 'gardien';
+  const org = currentOrg?.name || '—';
+  document.getElementById('userMenuTitle').textContent = name;
+  document.getElementById('userMenuContent').innerHTML =
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:8px">' + email + '</div>' +
+    '<span class="role-badge ' + (roleClass[role]||'role-gardien') + '">' + (roleLabel[role]||role) + '</span>' +
+    '<div style="font-size:12px;color:var(--text3);margin-top:10px">Institution : ' + org + '</div>';
   openModal('userMenuModal');
 }
 
