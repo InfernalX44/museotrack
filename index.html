@@ -770,16 +770,28 @@ function openUserMenu(){
 
 // ── USERS ─────────────────────────────────────────────────────────────────
 function renderUsers(){
-  const el=document.getElementById('userList');
+  var el=document.getElementById('userList');
   if(!state.users.length){el.innerHTML='<div class="no-results">Aucun membre.</div>';return}
-  el.innerHTML=state.users.map(function(u){
-    const ini=(u.full_name||'?').split(' ').map(function(n){return n[0]}).join('').toUpperCase().slice(0,2);
-    const isMe=u.id===currentUser?.id;
-    const rb='<span class="role-badge '+(roleClass[u.role]||'role-gardien')+'">'+(roleLabel[u.role]||u.role)+'</span>';
-    const me=isMe?'<span style="font-size:11px;color:var(--text3)">(moi)</span>':'';
-    const rs=(!isMe&&can('users'))?('<select style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px" onchange="changeRole(''+u.id+'',this.value)">'+['gardien','restaurateur','conservateur','admin'].map(function(r){return'<option value="'+r+'"'+(r===u.role?' selected':'')+'>'+roleLabel[r]+'</option>'}).join('')+'</select>'):'';
-    return'<div class="user-card"><div class="user-av">'+ini+'</div><div class="user-info"><div class="user-name">'+(u.full_name||'—')+' '+me+'</div></div><div class="user-actions">'+rb+rs+'</div></div>';
-  }).join('');
+  var html='';
+  for(var i=0;i<state.users.length;i++){
+    var u=state.users[i];
+    var ini=(u.full_name||'?').split(' ').map(function(n){return n[0]||''}).join('').toUpperCase().slice(0,2);
+    var isMe=u.id===currentUser?.id;
+    var rb='<span class="role-badge '+(roleClass[u.role]||'role-gardien')+'">'+(roleLabel[u.role]||u.role)+'</span>';
+    var me=isMe?'<small style="color:var(--text3)">(moi)</small>':'';
+    var uid=u.id;
+    var rs='';
+    if(!isMe&&can('users')){
+      rs='<select style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px" onchange="changeRole(this.dataset.uid,this.value)" data-uid="'+uid+'">';
+      var roles=['gardien','restaurateur','conservateur','admin'];
+      for(var j=0;j<roles.length;j++){
+        rs+='<option value="'+roles[j]+'"'+(roles[j]===u.role?' selected':'')+'>'+roleLabel[roles[j]]+'</option>';
+      }
+      rs+='</select>';
+    }
+    html+='<div class="user-card"><div class="user-av">'+ini+'</div><div class="user-info"><div class="user-name">'+(u.full_name||'—')+' '+me+'</div></div><div class="user-actions">'+rb+rs+'</div></div>';
+  }
+  el.innerHTML=html;
 }
 function openInviteModal(){openModal('inviteModal')}
 async function inviteUser(){
@@ -1018,7 +1030,14 @@ function exportData(){const blob=new Blob([JSON.stringify({org:currentOrg?.name,
 
 // ── UTILS ─────────────────────────────────────────────────────────────────
 function statusLabel(s){return{salle:'En salle',transit:'Transit',reserve:'Réserve',restauration:'Restauration',pret:'En prêt'}[s]||s}
-function formatTime(ts){const d=new Date(ts),now=new Date(),diff=now-d;if(diff<60000)return"À l'instant";if(diff<3600000)return Math.floor(diff/60000)+'min';if(diff<86400000)return Math.floor(diff/3600000)+'h';if(diff<172800000)return'Hier';return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}
+function formatTime(ts){
+  var d=new Date(ts),now=new Date(),diff=now-d;
+  if(diff<60000)return 'Il y a moins d une minute';
+  if(diff<3600000)return Math.floor(diff/60000)+'min';
+  if(diff<86400000)return Math.floor(diff/3600000)+'h';
+  if(diff<172800000)return 'Hier';
+  return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+}
 
 // ── REALTIME ──────────────────────────────────────────────────────────────
 setInterval(async()=>{
