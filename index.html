@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MuséoTrack</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <style>
@@ -284,16 +285,92 @@ main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-text{font-size:13px;color:var(--text2)}
 @media(max-width:600px){main{padding:14px}.form-row,.form-row.three{grid-template-columns:1fr}header{padding:0 14px}nav{padding:0 6px}.tab{padding:10px 8px;font-size:11px}}
+
+.auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg)}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.auth-logo-dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.auth-logo-text{font-size:20px;font-weight:600;color:var(--accent)}
+.auth-title{font-size:18px;font-weight:600;margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:20px}
+.auth-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.auth-field label{font-size:12px;font-weight:500;color:var(--text2)}
+.auth-field input{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s}
+.auth-field input:focus{border-color:var(--accent-mid)}
+.auth-btn{width:100%;padding:11px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:4px;transition:background .15s}
+.auth-btn:hover{background:#163E73}
+.auth-btn.alt{background:var(--surface);color:var(--accent);border:1px solid var(--accent-mid);margin-top:10px}
+.auth-btn.alt:hover{background:var(--accent-light)}
+.auth-error{background:var(--red-bg);border:1px solid #FCA5A5;border-radius:var(--radius-sm);padding:9px 12px;font-size:12px;color:var(--red);margin-bottom:12px;display:none}
+.auth-error.show{display:block}
+.auth-ok{background:var(--green-bg);border:1px solid #A7D7B8;border-radius:var(--radius-sm);padding:9px 12px;font-size:12px;color:var(--green);margin-bottom:12px;display:none}
+.auth-ok.show{display:block}
+.auth-sep{text-align:center;font-size:12px;color:var(--text3);margin:14px 0;position:relative}
+.auth-sep::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)}
+.auth-sep span{background:var(--surface);padding:0 10px;position:relative}
+.role-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.role-admin{background:#FEF3C7;color:#92400E}
+.role-conservateur{background:var(--accent-light);color:var(--accent)}
+.role-gardien{background:var(--green-bg);color:var(--green)}
+.role-restaurateur{background:var(--purple-bg);color:var(--purple)}
+.shell{display:none;flex-direction:column;min-height:100vh}
+.shell.visible{display:flex}
+.user-chip{display:flex;align-items:center;gap:7px;padding:4px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;background:var(--surface)}
+.user-chip:hover{background:var(--surface2)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+.sync-dot.offline{background:var(--amber)}
+.tab.hidden{display:none!important}
+.user-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.user-av{width:36px;height:36px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:var(--accent);flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{font-weight:500;font-size:13px}
+.user-actions{display:flex;gap:6px;align-items:center}
 </style>
 </head>
 <body>
-<div class="shell">
+
+<div class="auth-screen" id="authScreen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-logo"><div class="auth-logo-dot"></div><div class="auth-logo-text">MuséoTrack</div></div>
+
+    <div id="viewLogin">
+      <div class="auth-title">Connexion</div>
+      <div class="auth-sub">Accédez à votre espace institution.</div>
+      <div class="auth-error" id="loginErr"></div>
+      <div class="auth-ok" id="loginOk"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="lgEmail" placeholder="vous@institution.ch" onkeydown="if(event.key==='Enter')login()"></div>
+      <div class="auth-field"><label>Mot de passe</label><input type="password" id="lgPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"></div>
+      <button class="auth-btn" onclick="login()">Se connecter</button>
+      <div class="auth-sep"><span>ou</span></div>
+      <button class="auth-btn alt" onclick="showAuthView('viewRegister')">Créer un espace institution</button>
+    </div>
+
+    <div id="viewRegister" style="display:none">
+      <div class="auth-title">Créer votre espace</div>
+      <div class="auth-sub">Enregistrez votre institution pour commencer.</div>
+      <div class="auth-error" id="regErr"></div>
+      <div class="auth-field"><label>Nom de l'institution</label><input type="text" id="regOrg" placeholder="Musée cantonal, Collège X..."></div>
+      <div class="auth-field"><label>Votre nom complet</label><input type="text" id="regName" placeholder="Marie Dupont"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="regEmail" placeholder="admin@institution.ch"></div>
+      <div class="auth-field"><label>Mot de passe</label><input type="password" id="regPass" placeholder="8 caractères minimum"></div>
+      <button class="auth-btn" onclick="registerOrg()">Créer l'espace</button>
+      <div class="auth-sep"><span>ou</span></div>
+      <button class="auth-btn alt" onclick="showAuthView('viewLogin')">J'ai déjà un compte</button>
+    </div>
+  </div>
+</div>
+
+<div class="shell" id="appShell">
 
 <header>
   <div class="logo"><div class="logo-dot"></div>MuséoTrack</div>
   <div class="header-right">
-    <span class="sync-indicator online" id="syncIndicator">● En ligne</span>
     <span class="alert-chip" id="alertChip" onclick="goTab('dashboard')">⚠ <span id="alertChipCount">0</span></span>
+    <div class="user-chip" onclick="openUserMenu()">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="userChipName">...</span>
+      <span class="role-badge role-gardien" id="userChipRole"></span>
+    </div>
     <span style="font-size:12px;color:var(--text3)" id="clockDisplay"></span>
   </div>
 </header>
@@ -311,16 +388,19 @@ main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto}
   <button class="tab" onclick="goTab('portique')" id="tab-portique">
     <svg viewBox="0 0 24 24"><path d="M12 2v20M2 7h20M2 17h20"/></svg>Portique
   </button>
-  <button class="tab" onclick="goTab('prets')" id="tab-prets">
+  <button class="tab hidden" onclick="goTab('users')" id="tab-users">
+    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Équipe
+  </button>
+  <button class="tab hidden" onclick="goTab('prets')" id="tab-prets">
     <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Prêts
   </button>
-  <button class="tab" onclick="goTab('transit')" id="tab-transit">
+  <button class="tab hidden" onclick="goTab('transit')" id="tab-transit">
     <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8zM5.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>Transit
   </button>
   <button class="tab" onclick="goTab('historique')" id="tab-historique">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historique
   </button>
-  <button class="tab" onclick="goTab('settings')" id="tab-settings">
+  <button class="tab hidden" onclick="goTab('settings')" id="tab-settings">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>Paramètres
   </button>
 </nav>
@@ -376,7 +456,7 @@ main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto}
     <div class="form-row full"><div class="field"><label>Note</label><textarea id="moveNote" placeholder="Remarque éventuelle..."></textarea></div></div>
     <button class="btn-primary" onclick="confirmMove()">Confirmer le mouvement</button>
   </div>
-  <div style="margin-top:24px">
+  <div id="scanAddOeuvreSection" style="margin-top:24px">
     <div class="sec">Enregistrer une nouvelle oeuvre</div>
     <div class="form-card">
       <div class="form-row"><div class="field"><label>Nom *</label><input type="text" id="newName" placeholder="Portrait de femme"></div><div class="field"><label>Auteur</label><input type="text" id="newAuthor" placeholder="Anonyme, XVIIe s."></div></div>
@@ -410,6 +490,15 @@ main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto}
 <div class="panel" id="panel-transit">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="sec" style="margin:0">Opérations de transit</div><button class="btn-sm info" onclick="openNewTransit()">+ Nouveau transit</button></div>
   <div id="transitList"></div>
+</div>
+
+
+<div class="panel" id="panel-users">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div class="sec" style="margin:0">Gestion de l'équipe</div>
+    <button class="btn-sm info" onclick="openInviteModal()">+ Inviter un membre</button>
+  </div>
+  <div id="userList"></div>
 </div>
 
 <div class="panel" id="panel-historique">
@@ -452,6 +541,39 @@ main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto}
 <div class="modal-overlay" id="transitModal"><div class="modal" style="max-width:640px"><div class="modal-title">Nouveau transit</div><div id="transitModalContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('transitModal')">Annuler</button><button class="btn-confirm" onclick="saveTransit()">Créer</button></div></div></div>
 <div class="modal-overlay" id="transitDetailModal"><div class="modal" style="max-width:640px"><div class="modal-title" id="transitDetailTitle"></div><div id="transitDetailContent"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('transitDetailModal')">Fermer</button></div></div></div>
 <div class="modal-overlay" id="barcodeModal"><div class="modal" style="text-align:center"><div class="modal-title" style="justify-content:center">Code-barres</div><div class="barcode-wrap" style="margin:0 auto 8px"><svg id="barcodesvg"></svg></div><div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);margin-bottom:8px" id="barcodeIdText"></div><div class="modal-footer"><button class="btn-cancel" onclick="closeModal('barcodeModal')">Fermer</button><button class="btn-confirm" onclick="printBarcode()">Imprimer</button></div></div></div>
+
+
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal">
+    <div class="modal-title">Inviter un membre</div>
+    <div class="form-row full"><div class="field"><label>Nom complet</label><input type="text" id="invName" placeholder="Marie Dupont"></div></div>
+    <div class="form-row full"><div class="field"><label>Email</label><input type="email" id="invEmail" placeholder="marie@institution.ch"></div></div>
+    <div class="form-row full"><div class="field"><label>Rôle</label>
+      <select id="invRole">
+        <option value="gardien">Gardien — Scanner et portique uniquement</option>
+        <option value="restaurateur">Restaurateur — Oeuvres assignées uniquement</option>
+        <option value="conservateur">Conservateur — Tout sauf gestion utilisateurs</option>
+        <option value="admin">Admin — Accès total</option>
+      </select>
+    </div></div>
+    <div class="form-row full"><div class="field"><label>Mot de passe temporaire</label><input type="password" id="invPass" placeholder="Minimum 8 caractères"></div></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('inviteModal')">Annuler</button>
+      <button class="btn-confirm" onclick="inviteUser()">Créer le compte</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="userMenuModal">
+  <div class="modal" style="max-width:320px">
+    <div class="modal-title" id="userMenuTitle">Mon compte</div>
+    <div id="userMenuContent"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('userMenuModal')">Fermer</button>
+      <button class="btn-confirm" style="background:var(--red)" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+</div>
 
 <div class="alarm-overlay" id="alarmOverlay">
   <div class="alarm-icon">🚨</div>
@@ -817,8 +939,415 @@ function triggerAlarm(name){document.getElementById('alarmOeuvreName').textConte
 function dismissAlarm(){document.getElementById('alarmOverlay').classList.remove('active');stopAlarmLoop();if(state.portique.active)document.getElementById('portiqueLed').className='portique-led ok';toast('Alarme acquittée','warn')}
 
 function showBarcode(id){const o=state.oeuvres.find(x=>x.id===id);if(!o)return;try{JsBarcode('#barcodesvg',o.id,{format:'CODE128',width:2,height:55,displayValue:true,fontSize:13,margin:8})}catch(e){}document.getElementById('barcodeIdText').textContent=o.name;openModal('barcodeModal')}
+function printBarcode(){const svg=document.getElementById('barcodesvg');const name=document.getElementById('barcodeIdText').textContent;const svgData=new XMLSerializer().serializeToString(svg);const w=window.open('','_blank');w.document.write(`<html><body style="text-align:center;font-family:sans-serif;padding:40px"><p style="font-size:14px;font-weight:bold;margin-bottom:12px">${name}</p>${svgData}<p style="font-size:11px;color:#888;margin-top:12px">MuséoTrack</p><script>
+// ── SUPABASE ──────────────────────────────────────────────────────────────
+const { createClient } = supabase;
+const SB_URL = 'https://xjtntzgrwsnidtbvesgj.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqdG50emdyd3NuaWR0YnZlc2dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjY0NzMsImV4cCI6MjA5NDkwMjQ3M30.Hcp54T0jLlroUwIcSjy1ML-nil2m6tpAyjQelKHj6UY';
+const sb = createClient(SB_URL, SB_KEY);
+
+// ── SESSION STATE ─────────────────────────────────────────────────────────
+let currentUser = null, currentProfile = null, currentOrg = null, orgId = null;
+
+// ── ROLE PERMISSIONS ──────────────────────────────────────────────────────
+const PERMS = {
+  admin:        {edit:true,  del:true,  users:true,  prets:true,  transit:true,  settings:true},
+  conservateur: {edit:true,  del:false, users:false, prets:true,  transit:true,  settings:true},
+  gardien:      {edit:false, del:false, users:false, prets:false, transit:false, settings:false},
+  restaurateur: {edit:true,  del:false, users:false, prets:false, transit:false, settings:false},
+};
+function can(p){ return PERMS[currentProfile?.role]?.[p] || false; }
+const roleLabel = {admin:'Admin', conservateur:'Conservateur', gardien:'Gardien', restaurateur:'Restaurateur'};
+const roleClass = {admin:'role-admin', conservateur:'role-conservateur', gardien:'role-gardien', restaurateur:'role-restaurateur'};
+
+// ── APP STATE ─────────────────────────────────────────────────────────────
+let state = {
+  oeuvres:[], history:[], alerts:[], responsables:[], prets:[], transits:[], users:[],
+  portique:{active:false, authorized:[], log:[]},
+  nextId:1, nextPretId:1, nextTransitId:1, currentFilter:'tout'
+};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+function showAuthView(id){
+  ['viewLogin','viewRegister'].forEach(v=>document.getElementById(v).style.display='none');
+  document.getElementById(id).style.display='block';
+}
+
+async function registerOrg(){
+  const orgName=document.getElementById('regOrg').value.trim();
+  const fullName=document.getElementById('regName').value.trim();
+  const email=document.getElementById('regEmail').value.trim();
+  const pass=document.getElementById('regPass').value;
+  const err=document.getElementById('regErr');
+  err.classList.remove('show');
+  if(!orgName||!fullName||!email||!pass){err.textContent='Tous les champs sont requis.';err.classList.add('show');return}
+  if(pass.length<8){err.textContent='Mot de passe : 8 caractères minimum.';err.classList.add('show');return}
+  showLoading('Création de votre espace...');
+  try{
+    const {data:org,error:oErr}=await sb.from('orgs').insert({name:orgName}).select().single();
+    if(oErr)throw oErr;
+    const {error:aErr}=await sb.auth.signUp({email,password:pass,options:{data:{full_name:fullName,org_id:org.id,role:'admin'}}});
+    if(aErr)throw aErr;
+    hideLoading();
+    showAuthView('viewLogin');
+    const ok=document.getElementById('loginOk');ok.textContent='Espace créé ! Connectez-vous maintenant.';ok.classList.add('show');
+    document.getElementById('lgEmail').value=email;
+  }catch(e){hideLoading();err.textContent=e.message||'Erreur.';err.classList.add('show')}
+}
+
+async function login(){
+  const email=document.getElementById('lgEmail').value.trim();
+  const pass=document.getElementById('lgPass').value;
+  const err=document.getElementById('loginErr');
+  err.classList.remove('show');
+  if(!email||!pass){err.textContent='Email et mot de passe requis.';err.classList.add('show');return}
+  showLoading('Connexion...');
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){hideLoading();err.textContent='Email ou mot de passe incorrect.';err.classList.add('show');return}
+  await initApp(data.user);
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  currentUser=null;currentProfile=null;currentOrg=null;orgId=null;
+  document.getElementById('appShell').classList.remove('visible');
+  document.getElementById('authScreen').style.display='flex';
+  showAuthView('viewLogin');
+  closeModal('userMenuModal');
+}
+
+// ── INIT APP ──────────────────────────────────────────────────────────────
+async function initApp(user){
+  currentUser=user;
+  showLoading('Chargement...');
+  try{
+    const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).single();
+    if(!profile){hideLoading();toast('Profil introuvable.','error');return}
+    currentProfile=profile; orgId=profile.org_id;
+    const {data:org}=await sb.from('orgs').select('*').eq('id',orgId).single();
+    currentOrg=org;
+    await loadAll();
+    document.getElementById('authScreen').style.display='none';
+    document.getElementById('appShell').classList.add('visible');
+    applyRoleUI();
+    // update header
+    const n=profile.full_name||user.email.split('@')[0];
+    document.getElementById('userChipName').textContent=n;
+    const rb=document.getElementById('userChipRole');rb.textContent=roleLabel[profile.role]||profile.role;rb.className='role-badge '+(roleClass[profile.role]||'role-gardien');
+    // settings page
+    const sn=document.getElementById('settingsUserName');const se=document.getElementById('settingsUserEmail');const sr=document.getElementById('settingsUserRole');const so=document.getElementById('settingsOrgName');
+    if(sn)sn.textContent=n;if(se)se.textContent=user.email;if(sr){sr.textContent=roleLabel[profile.role]||profile.role;sr.className='role-badge '+(roleClass[profile.role]||'role-gardien')}
+    if(so)so.textContent=org?.name||'—';
+    hideLoading();renderDashboard();renderSettings();setSyncStatus('online');
+  }catch(e){hideLoading();toast('Erreur : '+e.message,'error');console.error(e)}
+}
+
+function applyRoleUI(){
+  const show={prets:can('prets'),transit:can('transit'),users:can('users'),settings:can('settings')};
+  Object.entries(show).forEach(([tab,v])=>{const el=document.getElementById('tab-'+tab);if(el)el.classList.toggle('hidden',!v)});
+  const addSec=document.getElementById('scanAddOeuvreSection');
+  if(addSec)addSec.style.display=can('edit')?'block':'none';
+}
+
+function setSyncStatus(s){const d=document.getElementById('syncDot');if(d)d.className='sync-dot'+(s==='offline'?' offline':'')}
+
+// ── LOAD ALL ──────────────────────────────────────────────────────────────
+async function loadAll(){
+  const [o,h,a,r,p,t,c,u]=await Promise.all([
+    sb.from('oeuvres').select('*').eq('org_id',orgId).order('created_at',{ascending:true}),
+    sb.from('history').select('*').eq('org_id',orgId).order('ts',{ascending:false}).limit(200),
+    sb.from('alerts').select('*').eq('org_id',orgId).order('ts',{ascending:false}),
+    sb.from('responsables').select('*').eq('org_id',orgId).order('name',{ascending:true}),
+    sb.from('prets').select('*').eq('org_id',orgId).order('created_at',{ascending:false}),
+    sb.from('transits').select('*').eq('org_id',orgId).order('created_at',{ascending:false}),
+    sb.from('config').select('*').eq('org_id',orgId).eq('key','app_state'),
+    sb.from('profiles').select('*').eq('org_id',orgId),
+  ]);
+  state.oeuvres=(o.data||[]).map(dbO);
+  state.history=h.data||[];
+  state.alerts=a.data||[];
+  state.responsables=(r.data||[]).map(x=>x.name);
+  state.prets=(p.data||[]).map(dbP);
+  state.transits=(t.data||[]).map(dbT);
+  state.users=u.data||[];
+  if(c.data?.length){const cfg=c.data[0].value;state.portique=cfg.portique||{active:false,authorized:[],log:[]};state.nextId=cfg.nextId||(state.oeuvres.length+1);state.nextPretId=cfg.nextPretId||(state.prets.length+1);state.nextTransitId=cfg.nextTransitId||(state.transits.length+1)}
+  if(!state.responsables.length&&currentProfile?.role==='admin'){await sb.from('responsables').insert({name:currentProfile.full_name||'Admin',org_id:orgId}).catch(()=>{});state.responsables=[currentProfile.full_name||'Admin']}
+}
+
+async function saveConfig(){
+  const val={portique:state.portique,nextId:state.nextId,nextPretId:state.nextPretId,nextTransitId:state.nextTransitId};
+  const {data:ex}=await sb.from('config').select('key').eq('org_id',orgId).eq('key','app_state');
+  if(ex?.length)await sb.from('config').update({value:val}).eq('org_id',orgId).eq('key','app_state');
+  else await sb.from('config').insert({key:'app_state',value:val,org_id:orgId});
+}
+
+// ── MAPPERS ───────────────────────────────────────────────────────────────
+function dbO(r){return{id:r.id,name:r.name,author:r.author||'',cat:r.cat||'',dim:r.dim||'',mat:r.mat||'',numInv:r.num_inv||'',valeur:r.valeur||0,etat:r.etat||'bon',lien:r.lien||'',loc:r.loc||'',status:r.status||'salle',resp:r.resp||'',notes:r.notes||'',createdAt:new Date(r.created_at).getTime()}}
+function toDbO(o){return{id:o.id,name:o.name,author:o.author,cat:o.cat,dim:o.dim,mat:o.mat,num_inv:o.numInv,valeur:o.valeur,etat:o.etat,lien:o.lien,loc:o.loc,status:o.status,resp:o.resp,notes:o.notes,org_id:orgId}}
+function dbP(r){return{id:r.id,institution:r.institution,contact:r.contact||'',depart:r.depart||'',retour:r.retour||'',oeuvresIds:r.oeuvres_ids||[],transporteur:r.transporteur||'',assurance:r.assurance||'',etatDepart:r.etat_depart||'',etatRetour:r.etat_retour||'',conditions:r.conditions||'',notes:r.notes||'',statut:r.statut||'preparation',createdAt:new Date(r.created_at).getTime()}}
+function toDbP(p){return{id:p.id,institution:p.institution,contact:p.contact,depart:p.depart,retour:p.retour,oeuvres_ids:p.oeuvresIds,transporteur:p.transporteur,assurance:p.assurance,etat_depart:p.etatDepart,etat_retour:p.etatRetour,conditions:p.conditions,notes:p.notes,statut:p.statut,org_id:orgId}}
+function dbT(r){return{id:r.id,from:r.from_loc||'',to:r.to_loc||'',depart:r.depart||'',arrivee:r.arrivee||'',oeuvresIds:r.oeuvres_ids||[],transporteur:r.transporteur||'',vehicule:r.vehicule||'',temp:r.temp||'',hum:r.hum||'',emballage:r.emballage||'',instructions:r.instructions||'',statut:r.statut||'planifie',checkpoints:r.checkpoints||[],createdAt:new Date(r.created_at).getTime()}}
+function toDbT(t){return{id:t.id,from_loc:t.from,to_loc:t.to,depart:t.depart,arrivee:t.arrivee,oeuvres_ids:t.oeuvresIds,transporteur:t.transporteur,vehicule:t.vehicule,temp:t.temp,hum:t.hum,emballage:t.emballage,instructions:t.instructions,statut:t.statut,checkpoints:t.checkpoints,org_id:orgId}}
+
+// ── UI UTILS ──────────────────────────────────────────────────────────────
+function updateClock(){const el=document.getElementById('clockDisplay');if(el)el.textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+setInterval(updateClock,1000);updateClock();
+function showLoading(t){document.getElementById('loadingText').textContent=t;document.getElementById('loadingOverlay').classList.remove('hidden')}
+function hideLoading(){document.getElementById('loadingOverlay').classList.add('hidden')}
+function goTab(id){
+  stopCamera();
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  const fn={oeuvres:renderOeuvres,dashboard:renderDashboard,historique:renderHistory,settings:renderSettings,portique:renderPortique,prets:renderPrets,transit:renderTransits,users:renderUsers};
+  if(fn[id])fn[id]();
+  if(id==='scan'){syncRespSelects();startCameraIfMode()}
+}
+let toastTimer;
+function toast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.className='',3500)}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+
+// ── USER MENU ─────────────────────────────────────────────────────────────
+function openUserMenu(){
+  document.getElementById('userMenuTitle').textContent=currentProfile?.full_name||'Mon compte';
+  document.getElementById('userMenuContent').innerHTML=`
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px">${currentUser?.email||''}</div>
+    <span class="role-badge ${roleClass[currentProfile?.role]||'role-gardien'}">${roleLabel[currentProfile?.role]||''}</span>
+    <div style="font-size:12px;color:var(--text3);margin-top:10px">Institution : ${currentOrg?.name||'—'}</div>`;
+  openModal('userMenuModal');
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────
+function renderUsers(){
+  const el=document.getElementById('userList');
+  if(!state.users.length){el.innerHTML='<div class="no-results">Aucun membre.</div>';return}
+  el.innerHTML=state.users.map(u=>{
+    const ini=(u.full_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+    const isMe=u.id===currentUser?.id;
+    return`<div class="user-card"><div class="user-av">${ini}</div><div class="user-info"><div class="user-name">${u.full_name||'—'} ${isMe?'<span style="font-size:11px;color:var(--text3)">(moi)</span>':''}</div></div><div class="user-actions"><span class="role-badge ${roleClass[u.role]||'role-gardien'}">${roleLabel[u.role]||u.role}</span>${!isMe&&can('users')?`<select style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface)" onchange="changeRole('${u.id}',this.value)">${['gardien','restaurateur','conservateur','admin'].map(r=>`<option value="${r}"${r===u.role?' selected':''}>${roleLabel[r]}</option>`).join('')}</select>`:''}</div></div>`;
+  }).join('');
+}
+function openInviteModal(){openModal('inviteModal')}
+async function inviteUser(){
+  const name=document.getElementById('invName').value.trim(),email=document.getElementById('invEmail').value.trim(),role=document.getElementById('invRole').value,pass=document.getElementById('invPass').value;
+  if(!name||!email||!pass){toast('Tous les champs requis.','warn');return}
+  if(pass.length<8){toast('Mot de passe : 8 caractères minimum.','warn');return}
+  showLoading('Création du compte...');
+  const {error}=await sb.auth.signUp({email,password:pass,options:{data:{full_name:name,org_id:orgId,role}}});
+  if(error){hideLoading();toast('Erreur : '+error.message,'error');return}
+  hideLoading();closeModal('inviteModal');
+  const {data:users}=await sb.from('profiles').select('*').eq('org_id',orgId);state.users=users||[];renderUsers();
+  toast(name+' invité','success');
+  document.getElementById('invName').value='';document.getElementById('invEmail').value='';document.getElementById('invPass').value='';
+}
+async function changeRole(uid,role){await sb.from('profiles').update({role}).eq('id',uid).eq('org_id',orgId);const u=state.users.find(x=>x.id===uid);if(u)u.role=role;renderUsers();toast('Rôle mis à jour','success')}
+
+// ── AUDIO ─────────────────────────────────────────────────────────────────
+let alarmInterval=null;
+function playAlarmSound(){try{const ctx=new AudioContext();function b(f,s,d){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=f;o.type='square';g.gain.setValueAtTime(0.12,ctx.currentTime+s);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+s+d);o.start(ctx.currentTime+s);o.stop(ctx.currentTime+s+d)}b(880,0,.15);b(660,.2,.15);b(880,.4,.15);b(660,.6,.15)}catch(e){}}
+function startAlarmLoop(){playAlarmSound();alarmInterval=setInterval(playAlarmSound,900)}
+function stopAlarmLoop(){clearInterval(alarmInterval);alarmInterval=null}
+function beepOk(){try{const ctx=new AudioContext(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=0.07;o.start();o.stop(ctx.currentTime+0.08)}catch(e){}}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const o=state.oeuvres;
+  document.getElementById('statTotal').textContent=o.length;
+  document.getElementById('statSalle').textContent=o.filter(x=>x.status==='salle').length;
+  document.getElementById('statTransit').textContent=o.filter(x=>x.status==='transit').length;
+  document.getElementById('statReserve').textContent=o.filter(x=>x.status==='reserve').length;
+  document.getElementById('statRestauration').textContent=o.filter(x=>x.status==='restauration').length;
+  document.getElementById('statPret').textContent=o.filter(x=>x.status==='pret').length;
+  document.getElementById('oeuvreBadge').textContent=o.length;
+  const ac=document.getElementById('alertContainer'),chip=document.getElementById('alertChip');
+  if(!state.alerts.length){ac.innerHTML='<div class="empty-alerts">✓ Aucune alerte active.</div>';chip.classList.remove('visible')}
+  else{chip.classList.add('visible');document.getElementById('alertChipCount').textContent=state.alerts.length;ac.innerHTML=state.alerts.map(a=>`<div class="alert-box ${a.type==='amber'?'warn':''}" id="alert-${a.id}"><span class="alert-icon ${a.type}">${a.type==='red'?'⚠':'⏱'}</span><div class="alert-body"><div class="alert-title">${a.title}</div><div class="alert-sub">${a.detail}</div></div><span class="alert-time">${formatTime(a.ts)}</span><button class="btn-resolve" onclick="resolveAlert('${a.id}')">Résoudre</button></div>`).join('')}
+  const recent=state.history.slice(0,5);
+  document.getElementById('dashHistory').innerHTML=recent.length?recent.map(h=>`<div class="history-item"><div class="h-dot ${h.type}"></div><div class="h-body"><div class="h-action">${h.text}</div><div class="h-who">${h.who}</div></div><div class="h-time">${formatTime(h.ts)}</div></div>`).join(''):'<div style="padding:14px;font-size:13px;color:var(--text3)">Aucun mouvement.</div>';
+}
+async function resolveAlert(id){await sb.from('alerts').delete().eq('id',id).eq('org_id',orgId);state.alerts=state.alerts.filter(a=>a.id!==id);renderDashboard();toast('Alerte résolue','success')}
+
+// ── OEUVRES ───────────────────────────────────────────────────────────────
+function filterStatus(f){state.currentFilter=f;document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.toggle('active',c.dataset.filter===f));renderOeuvres()}
+function renderOeuvres(){
+  const q=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  let list=state.oeuvres;
+  if(state.currentFilter!=='tout')list=list.filter(o=>o.status===state.currentFilter);
+  if(currentProfile?.role==='restaurateur')list=list.filter(o=>o.resp===currentProfile.full_name);
+  if(q)list=list.filter(o=>o.name.toLowerCase().includes(q)||o.id.toLowerCase().includes(q)||(o.author||'').toLowerCase().includes(q)||(o.numInv||'').toLowerCase().includes(q));
+  const el=document.getElementById('oeuvreList');
+  if(!list.length){el.innerHTML='<div class="no-results">Aucune oeuvre trouvée.</div>';return}
+  el.innerHTML=list.map(o=>`<div class="oeuvre-card"><span class="oeuvre-id">${o.id}</span><div class="oeuvre-col"><div class="oeuvre-name">${o.name}</div><div class="oeuvre-meta">${o.loc} · ${o.resp||'—'} ${o.numInv?'· '+o.numInv:''}</div></div><span class="pill p-${o.status}">${statusLabel(o.status)}</span><div class="oeuvre-actions"><button class="btn-sm info" onclick="showFiche('${o.id}')">Fiche</button><button class="btn-sm" onclick="showBarcode('${o.id}')">&#9646;&#9646;</button>${can('edit')?`<button class="btn-sm" onclick="openMoveFromOeuvre('${o.id}')">Déplacer</button>`:''}</div></div>`).join('');
+}
+function openMoveFromOeuvre(id){goTab('scan');const o=state.oeuvres.find(x=>x.id===id);if(o)setTimeout(()=>applyScannedOeuvre(o),300)}
+
+async function addOeuvre(){
+  if(!can('edit')){toast('Accès refusé','error');return}
+  const name=document.getElementById('newName').value.trim();if(!name){toast('Nom requis.','warn');return}
+  const loc=document.getElementById('newLoc').value;
+  let status='salle';if(loc.includes('éserve'))status='reserve';else if(loc.includes('estau'))status='restauration';
+  const id='MT-'+String(state.nextId++).padStart(4,'0');
+  const o={id,name,author:document.getElementById('newAuthor').value.trim(),cat:document.getElementById('newCat').value.trim(),dim:document.getElementById('newDim').value.trim(),mat:document.getElementById('newMat').value.trim(),numInv:document.getElementById('newNumInv').value.trim(),valeur:parseFloat(document.getElementById('newValeur').value)||0,etat:document.getElementById('newEtat').value,lien:document.getElementById('newLien').value.trim(),loc,status,resp:document.getElementById('newResp').value,notes:document.getElementById('newNotes').value.trim()};
+  showLoading('Enregistrement...');
+  const {error}=await sb.from('oeuvres').insert(toDbO(o));
+  if(error){hideLoading();toast('Erreur : '+error.message,'error');return}
+  await addHistory('neutral',`«${name}» enregistrée (${id})`,'Création · '+(o.resp||'—'));
+  await saveConfig();hideLoading();state.oeuvres.push(o);
+  ['newName','newAuthor','newCat','newDim','newMat','newNumInv','newValeur','newLien','newNotes'].forEach(f=>{const el=document.getElementById(f);if(el)el.value=''});
+  showBarcode(id);renderDashboard();toast('Oeuvre créée : '+id,'success');
+}
+
+// ── FICHE ─────────────────────────────────────────────────────────────────
+let curFiche=null;
+function showFiche(id){
+  const o=state.oeuvres.find(x=>x.id===id);if(!o)return;curFiche=id;
+  document.getElementById('ficheTitle').textContent='Fiche — '+o.name;
+  const eL={bon:'Bon état',moyen:'État moyen',mauvais:'Mauvais état'}[o.etat]||'—';
+  const eC={bon:'etat-bon',moyen:'etat-moyen',mauvais:'etat-mauvais'}[o.etat]||'';
+  document.getElementById('ficheContent').innerHTML=`<div class="fiche-section"><div class="fiche-section-title">Identification</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Identifiant</div><div class="fiche-value mono">${o.id}</div></div><div class="fiche-row"><div class="fiche-label">N° inventaire</div><div class="fiche-value mono">${o.numInv||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Auteur</div><div class="fiche-value">${o.author||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Catégorie</div><div class="fiche-value">${o.cat||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Dimensions</div><div class="fiche-value">${o.dim||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Matériaux</div><div class="fiche-value">${o.mat||'—'}</div></div></div></div><div class="fiche-section"><div class="fiche-section-title">Conservation</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">État</div><span class="etat-conserv ${eC}">${eL}</span></div><div class="fiche-row"><div class="fiche-label">Valeur assurée</div><div class="fiche-value">${o.valeur?new Intl.NumberFormat('fr-CH',{style:'currency',currency:'CHF',maximumFractionDigits:0}).format(o.valeur):'—'}</div></div></div>${o.notes?`<div style="margin-top:8px"><div class="fiche-label">Notes</div><div style="font-size:13px;margin-top:3px">${o.notes}</div></div>`:''}</div><div class="fiche-section"><div class="fiche-section-title">Localisation</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Lieu</div><div class="fiche-value">${o.loc}</div></div><div class="fiche-row"><div class="fiche-label">Statut</div><span class="pill p-${o.status}" style="margin-top:3px;display:inline-block">${statusLabel(o.status)}</span></div><div class="fiche-row"><div class="fiche-label">Responsable</div><div class="fiche-value">${o.resp||'—'}</div></div></div></div>${o.lien?`<div class="fiche-section"><div class="fiche-section-title">Documentation</div><a href="${o.lien}" target="_blank" class="link-btn">📄 Ouvrir la fiche / PDF</a></div>`:''}`;
+  openModal('ficheModal');
+}
+function editFiche(){if(!can('edit')){toast('Accès refusé','error');return}
+  const o=state.oeuvres.find(x=>x.id===curFiche);if(!o)return;closeModal('ficheModal');
+  document.getElementById('editFicheContent').innerHTML=`<div class="form-row"><div class="field"><label>Nom</label><input type="text" id="ef_name" value="${o.name}"></div><div class="field"><label>Auteur</label><input type="text" id="ef_author" value="${o.author||''}"></div></div><div class="form-row three"><div class="field"><label>Catégorie</label><input type="text" id="ef_cat" value="${o.cat||''}"></div><div class="field"><label>Dimensions</label><input type="text" id="ef_dim" value="${o.dim||''}"></div><div class="field"><label>Matériaux</label><input type="text" id="ef_mat" value="${o.mat||''}"></div></div><div class="form-row"><div class="field"><label>N° inventaire</label><input type="text" id="ef_numInv" value="${o.numInv||''}"></div><div class="field"><label>Valeur (CHF)</label><input type="number" id="ef_valeur" value="${o.valeur||''}"></div></div><div class="form-row"><div class="field"><label>État</label><select id="ef_etat"><option value="bon" ${o.etat==='bon'?'selected':''}>Bon</option><option value="moyen" ${o.etat==='moyen'?'selected':''}>Moyen</option><option value="mauvais" ${o.etat==='mauvais'?'selected':''}>Mauvais</option></select></div><div class="field"><label>Lien PDF</label><input type="url" id="ef_lien" value="${o.lien||''}"></div></div><div class="form-row full"><div class="field"><label>Notes</label><textarea id="ef_notes">${o.notes||''}</textarea></div></div>`;
+  openModal('editFicheModal');
+}
+async function saveFiche(){
+  const o=state.oeuvres.find(x=>x.id===curFiche);if(!o)return;
+  o.name=document.getElementById('ef_name').value.trim()||o.name;o.author=document.getElementById('ef_author').value.trim();o.cat=document.getElementById('ef_cat').value.trim();o.dim=document.getElementById('ef_dim').value.trim();o.mat=document.getElementById('ef_mat').value.trim();o.numInv=document.getElementById('ef_numInv').value.trim();o.valeur=parseFloat(document.getElementById('ef_valeur').value)||0;o.etat=document.getElementById('ef_etat').value;o.lien=document.getElementById('ef_lien').value.trim();o.notes=document.getElementById('ef_notes').value.trim();
+  await sb.from('oeuvres').update(toDbO(o)).eq('id',o.id).eq('org_id',orgId);
+  closeModal('editFicheModal');renderOeuvres();renderDashboard();toast('Fiche mise à jour','success');
+}
+
+// ── MOVE ──────────────────────────────────────────────────────────────────
+async function confirmMove(){
+  if(!can('edit')){toast('Accès refusé','error');return}
+  const id=document.getElementById('scanId').value.trim(),dest=document.getElementById('destSelect').value,resp=document.getElementById('respSelect').value,status=document.getElementById('statusSelect').value,note=document.getElementById('moveNote').value.trim();
+  if(!id){toast('Aucune oeuvre.','warn');return}if(!dest){toast('Choisissez une destination.','warn');return}
+  const o=state.oeuvres.find(x=>x.id===id);if(!o)return;
+  const oldLoc=o.loc;o.loc=dest;o.status=status;if(resp)o.resp=resp;
+  showLoading('Enregistrement...');
+  await sb.from('oeuvres').update({loc:dest,status,resp:resp||o.resp}).eq('id',id).eq('org_id',orgId);
+  await addHistory('ok',`«${o.name}» : ${oldLoc} → ${dest}`,(resp||o.resp||'—')+(note?' · '+note:''));
+  if(status==='transit'){const al={id:'a'+Date.now(),type:'amber',title:'Transit en cours',detail:`«${o.name}» → ${dest}. Confirmez l'arrivée.`,ts:Date.now(),org_id:orgId};await sb.from('alerts').insert(al);state.alerts.unshift(al)}
+  hideLoading();
+  document.getElementById('scanId').value='';document.getElementById('scannedBadge').classList.remove('show');document.getElementById('moveForm').style.display='none';document.getElementById('moveNote').value='';document.getElementById('destSelect').value='';
+  if(html5QrCode&&cameraRunning)html5QrCode.resume();
+  renderDashboard();toast('Mouvement : '+o.name,'success');
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────────
+async function addHistory(type,text,who){
+  const h={type,text,who,ts:Date.now(),org_id:orgId};
+  await sb.from('history').insert(h).catch(console.error);
+  state.history.unshift(h);
+}
+function renderHistory(){
+  const q=(document.getElementById('histSearch')?.value||'').toLowerCase();
+  let list=state.history;if(q)list=list.filter(h=>h.text.toLowerCase().includes(q)||h.who.toLowerCase().includes(q));
+  const el=document.getElementById('fullHistory');
+  if(!list.length){el.innerHTML='<div style="padding:14px;font-size:13px;color:var(--text3)">Aucun mouvement.</div>';return}
+  el.innerHTML=list.map(h=>`<div class="history-item"><div class="h-dot ${h.type}"></div><div class="h-body"><div class="h-action">${h.text}</div><div class="h-who">${h.who}</div></div><div class="h-time">${formatTime(h.ts)}</div></div>`).join('');
+}
+
+// ── PRÊTS ─────────────────────────────────────────────────────────────────
+function openNewPret(){
+  const opts=state.oeuvres.map(o=>`<option value="${o.id}">${o.id} — ${o.name}</option>`).join('');
+  document.getElementById('pretModalContent').innerHTML=`<div class="form-row"><div class="field"><label>Institution *</label><input type="text" id="p_inst" placeholder="Musée du Louvre, Paris"></div><div class="field"><label>Contact</label><input type="text" id="p_cont" placeholder="Nom — email"></div></div><div class="form-row"><div class="field"><label>Date départ</label><input type="date" id="p_dep"></div><div class="field"><label>Date retour</label><input type="date" id="p_ret"></div></div><div class="form-row full"><div class="field"><label>Oeuvres *</label><select id="p_oeuv" multiple style="min-height:80px">${opts}</select><small style="font-size:11px;color:var(--text2);display:block;margin-top:3px">Ctrl+clic pour plusieurs</small></div></div><div class="form-row"><div class="field"><label>Transporteur</label><input type="text" id="p_trans" placeholder="Art Transit SA"></div><div class="field"><label>Assurance</label><input type="text" id="p_assu" placeholder="AXA Art — Police n°..."></div></div><div class="form-row full"><div class="field"><label>État des oeuvres au départ</label><textarea id="p_etatD" placeholder="Décrire l'état..."></textarea></div></div><div class="form-row full"><div class="field"><label>Conditions de transport</label><input type="text" id="p_cond" placeholder="T° 18-22°C, HR 45-55%..."></div></div><div class="form-row full"><div class="field"><label>Notes</label><textarea id="p_notes" placeholder="Clauses spéciales..."></textarea></div></div>`;
+  openModal('pretModal');
+}
+async function savePret(){
+  const sel=document.getElementById('p_oeuv');const oeuvresIds=Array.from(sel.selectedOptions).map(o=>o.value);
+  if(!document.getElementById('p_inst').value.trim()||!oeuvresIds.length){toast('Institution et oeuvres requises.','warn');return}
+  const pid='PT-'+String(state.nextPretId++).padStart(3,'0');
+  const pret={id:pid,institution:document.getElementById('p_inst').value.trim(),contact:document.getElementById('p_cont').value.trim(),depart:document.getElementById('p_dep').value,retour:document.getElementById('p_ret').value,oeuvresIds,transporteur:document.getElementById('p_trans').value.trim(),assurance:document.getElementById('p_assu').value.trim(),etatDepart:document.getElementById('p_etatD').value.trim(),etatRetour:'',conditions:document.getElementById('p_cond').value.trim(),notes:document.getElementById('p_notes').value.trim(),statut:'preparation'};
+  showLoading('Enregistrement...');
+  await sb.from('prets').insert(toDbP(pret));
+  for(const id of oeuvresIds){const o=state.oeuvres.find(x=>x.id===id);if(o){o.status='pret';o.loc='Prêt — '+pret.institution;await sb.from('oeuvres').update({status:'pret',loc:o.loc}).eq('id',id).eq('org_id',orgId)}}
+  await addHistory('ok',`Prêt ${pid} — ${pret.institution}`,'Système');
+  await saveConfig();hideLoading();state.prets.unshift(pret);
+  closeModal('pretModal');renderPrets();renderDashboard();toast('Prêt créé : '+pid,'success');
+}
+function renderPrets(){
+  const el=document.getElementById('pretList');if(!state.prets.length){el.innerHTML='<div class="no-results">Aucun prêt.</div>';return}
+  const sL={preparation:'En préparation',enCours:'En cours',retour:'Retour en attente',clos:'Clôturé'};
+  el.innerHTML=state.prets.map(p=>{const noms=p.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?o.name:id}).join(', ');return`<div class="pret-card" onclick="openPretDetail('${p.id}')"><div class="pret-header"><div class="pret-institution">${p.institution}</div><span class="pret-status ps-${p.statut}">${sL[p.statut]||p.statut}</span></div><div class="pret-oeuvres">${noms}</div><div class="pret-footer"><span style="font-size:11px;color:var(--text2)">${p.depart||'—'} → ${p.retour||'—'}</span>${p.etatDepart?'<span class="etat-badge etat-ok">Départ ✓</span>':'<span class="etat-badge etat-missing">Départ —</span>'}${p.etatRetour?'<span class="etat-badge etat-ok">Retour ✓</span>':'<span class="etat-badge etat-missing">Retour —</span>'}<button class="btn-sm" onclick="event.stopPropagation();changePretStatut('${p.id}')" style="margin-left:auto">Avancer</button></div></div>`}).join('');
+}
+function openPretDetail(id){
+  const p=state.prets.find(x=>x.id===id);if(!p)return;
+  document.getElementById('pretDetailTitle').textContent=p.id+' — '+p.institution;
+  document.getElementById('pretDetailContent').innerHTML=`<div class="fiche-section"><div class="fiche-section-title">Informations</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Institution</div><div class="fiche-value">${p.institution}</div></div><div class="fiche-row"><div class="fiche-label">Contact</div><div class="fiche-value">${p.contact||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Départ</div><div class="fiche-value">${p.depart||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Retour prévu</div><div class="fiche-value">${p.retour||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Transporteur</div><div class="fiche-value">${p.transporteur||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Assurance</div><div class="fiche-value">${p.assurance||'—'}</div></div></div></div><div class="fiche-section"><div class="fiche-section-title">Oeuvres prêtées</div>${p.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?`<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">${o.id} — ${o.name}</div>`:''}).join('')}</div><div class="fiche-section"><div class="fiche-section-title">État au départ</div><div style="font-size:13px">${p.etatDepart||'<span style="color:var(--text3)">Non renseigné</span>'}</div></div><div class="fiche-section"><div class="fiche-section-title">État au retour</div><textarea id="etatRetourInput" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;min-height:60px">${p.etatRetour||''}</textarea><button class="btn-secondary" onclick="saveEtatRetour('${p.id}')" style="margin-top:6px;width:auto;padding:6px 14px">Enregistrer</button></div>${p.conditions?`<div class="fiche-section"><div class="fiche-section-title">Conditions</div><div style="font-size:13px">${p.conditions}</div></div>`:''}${p.notes?`<div class="fiche-section"><div class="fiche-section-title">Notes</div><div style="font-size:13px">${p.notes}</div></div>`:''}`;
+  openModal('pretDetailModal');
+}
+async function saveEtatRetour(id){const p=state.prets.find(x=>x.id===id);if(!p)return;p.etatRetour=document.getElementById('etatRetourInput').value.trim();await sb.from('prets').update({etat_retour:p.etatRetour}).eq('id',id).eq('org_id',orgId);toast('Rapport retour enregistré','success')}
+async function changePretStatut(id){const p=state.prets.find(x=>x.id===id);if(!p)return;const order=['preparation','enCours','retour','clos'];const idx=order.indexOf(p.statut);if(idx<order.length-1)p.statut=order[idx+1];if(p.statut==='clos'){for(const oid of p.oeuvresIds){const o=state.oeuvres.find(x=>x.id===oid);if(o){o.status='reserve';o.loc='Réserve 1';await sb.from('oeuvres').update({status:'reserve',loc:'Réserve 1'}).eq('id',oid).eq('org_id',orgId)}}}await sb.from('prets').update({statut:p.statut}).eq('id',id).eq('org_id',orgId);renderPrets();renderDashboard();toast('Statut mis à jour','success')}
+
+// ── TRANSITS ──────────────────────────────────────────────────────────────
+function openNewTransit(){
+  const opts=state.oeuvres.map(o=>`<option value="${o.id}">${o.id} — ${o.name}</option>`).join('');
+  document.getElementById('transitModalContent').innerHTML=`<div class="form-row"><div class="field"><label>Départ *</label><input type="text" id="t_from" placeholder="Réserve 1"></div><div class="field"><label>Destination *</label><input type="text" id="t_to" placeholder="Salle A"></div></div><div class="form-row"><div class="field"><label>Heure départ</label><input type="datetime-local" id="t_dep"></div><div class="field"><label>Arrivée estimée</label><input type="datetime-local" id="t_arr"></div></div><div class="form-row full"><div class="field"><label>Oeuvres *</label><select id="t_oeuv" multiple style="min-height:70px">${opts}</select></div></div><div class="form-row"><div class="field"><label>Transporteur</label><input type="text" id="t_trans"></div><div class="field"><label>Véhicule</label><input type="text" id="t_veh"></div></div><div class="form-row three"><div class="field"><label>Température</label><input type="text" id="t_temp" placeholder="18–22°C"></div><div class="field"><label>Humidité</label><input type="text" id="t_hum" placeholder="45–55%"></div><div class="field"><label>Emballage</label><input type="text" id="t_emb"></div></div><div class="form-row full"><div class="field"><label>Instructions</label><textarea id="t_inst"></textarea></div></div>`;
+  openModal('transitModal');
+}
+async function saveTransit(){
+  const sel=document.getElementById('t_oeuv');const oeuvresIds=Array.from(sel.selectedOptions).map(o=>o.value);
+  const from=document.getElementById('t_from').value.trim(),to=document.getElementById('t_to').value.trim();
+  if(!from||!to||!oeuvresIds.length){toast('Départ, destination et oeuvres requis.','warn');return}
+  const tid='TR-'+String(state.nextTransitId++).padStart(3,'0');
+  const transit={id:tid,from,to,depart:document.getElementById('t_dep').value,arrivee:document.getElementById('t_arr').value,oeuvresIds,transporteur:document.getElementById('t_trans').value.trim(),vehicule:document.getElementById('t_veh').value.trim(),temp:document.getElementById('t_temp').value.trim(),hum:document.getElementById('t_hum').value.trim(),emballage:document.getElementById('t_emb').value.trim(),instructions:document.getElementById('t_inst').value.trim(),statut:'planifie',checkpoints:[{label:'Chargement confirmé',done:false,ts:null},{label:'En route',done:false,ts:null},{label:'Arrivée destination',done:false,ts:null},{label:'Déchargement et vérification',done:false,ts:null}]};
+  showLoading('Création...');
+  await sb.from('transits').insert(toDbT(transit));
+  for(const id of oeuvresIds){const o=state.oeuvres.find(x=>x.id===id);if(o){o.status='transit';o.loc='Transit → '+to;await sb.from('oeuvres').update({status:'transit',loc:o.loc}).eq('id',id).eq('org_id',orgId)}}
+  await addHistory('ok',`Transit ${tid} : ${from} → ${to}`,'Système');
+  await saveConfig();hideLoading();state.transits.unshift(transit);
+  closeModal('transitModal');renderTransits();renderDashboard();toast('Transit créé : '+tid,'success');
+}
+function renderTransits(){
+  const el=document.getElementById('transitList');if(!state.transits.length){el.innerHTML='<div class="no-results">Aucun transit.</div>';return}
+  const sL={planifie:'Planifié',enRoute:'En route',arrive:'Arrivé',retard:'Retard'};
+  el.innerHTML=state.transits.map(t=>{const noms=t.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?o.name:id}).join(', ');const done=(t.checkpoints||[]).filter(c=>c.done).length;return`<div class="transit-card" onclick="openTransitDetail('${t.id}')"><div class="transit-header"><div class="transit-title">${t.id}</div><span class="t-status ts-${t.statut}">${sL[t.statut]||t.statut}</span></div><div class="transit-route"><span>${t.from}</span><span class="transit-arrow">→</span><span>${t.to}</span></div><div class="transit-meta"><span class="transit-meta-item">📦 ${noms}</span>${t.transporteur?`<span class="transit-meta-item">🚚 ${t.transporteur}</span>`:''}<span class="transit-meta-item" style="color:var(--accent)">✓ ${done}/${(t.checkpoints||[]).length}</span></div></div>`}).join('');
+}
+function openTransitDetail(id){
+  const t=state.transits.find(x=>x.id===id);if(!t)return;
+  document.getElementById('transitDetailTitle').textContent=t.id+' — '+t.from+' → '+t.to;
+  const cps=t.checkpoints||[];
+  document.getElementById('transitDetailContent').innerHTML=`<div class="fiche-section"><div class="fiche-section-title">Informations</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Départ</div><div class="fiche-value">${t.from}</div></div><div class="fiche-row"><div class="fiche-label">Destination</div><div class="fiche-value">${t.to}</div></div><div class="fiche-row"><div class="fiche-label">Transporteur</div><div class="fiche-value">${t.transporteur||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Véhicule</div><div class="fiche-value">${t.vehicule||'—'}</div></div></div></div><div class="fiche-section"><div class="fiche-section-title">Conditions</div><div class="fiche-grid"><div class="fiche-row"><div class="fiche-label">Température</div><div class="fiche-value">${t.temp||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Humidité</div><div class="fiche-value">${t.hum||'—'}</div></div><div class="fiche-row"><div class="fiche-label">Emballage</div><div class="fiche-value">${t.emballage||'—'}</div></div></div>${t.instructions?`<div style="margin-top:8px"><div class="fiche-label">Instructions</div><div style="font-size:13px;margin-top:3px">${t.instructions}</div></div>`:''}</div><div class="fiche-section"><div class="fiche-section-title">Oeuvres</div>${t.oeuvresIds.map(id=>{const o=state.oeuvres.find(x=>x.id===id);return o?`<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">${o.id} — ${o.name}</div>`:''}).join('')}</div><div class="fiche-section"><div class="fiche-section-title">Checkpoints</div>${cps.map((c,i)=>`<div class="checkpoint-row"><div class="cp-dot ${c.done?'done':i===cps.findIndex(x=>!x.done)?'active':'pending'}"></div><div class="cp-label">${c.label}</div><div class="cp-time">${c.ts?formatTime(c.ts):''}</div>${!c.done?`<button class="cp-scan-btn" onclick="validateCheckpoint('${t.id}',${i})">Valider</button>`:'<span style="font-size:11px;color:var(--green)">✓</span>'}</div>`).join('')}<div style="margin-top:10px;display:flex;gap:8px"><button class="btn-sm" onclick="changeTransitStatut('${t.id}','enRoute')">En route</button><button class="btn-sm" onclick="changeTransitStatut('${t.id}','arrive')">Arrivé</button><button class="btn-sm danger" onclick="changeTransitStatut('${t.id}','retard')">Retard</button></div></div>`;
+  openModal('transitDetailModal');
+}
+async function validateCheckpoint(tid,idx){const t=state.transits.find(x=>x.id===tid);if(!t)return;t.checkpoints[idx].done=true;t.checkpoints[idx].ts=Date.now();if(idx===t.checkpoints.length-1){t.statut='arrive';for(const id of t.oeuvresIds){const o=state.oeuvres.find(x=>x.id===id);if(o){o.status='salle';o.loc=t.to;await sb.from('oeuvres').update({status:'salle',loc:t.to}).eq('id',id).eq('org_id',orgId)}}await addHistory('ok',`Transit ${tid} terminé — arrivée à ${t.to}`,'Système')}await sb.from('transits').update({checkpoints:t.checkpoints,statut:t.statut}).eq('id',tid).eq('org_id',orgId);openTransitDetail(tid);renderTransits();renderDashboard();toast('Checkpoint validé','success')}
+async function changeTransitStatut(tid,st){const t=state.transits.find(x=>x.id===tid);if(!t)return;t.statut=st;if(st==='retard'){const al={id:'tr'+Date.now(),type:'red',title:'Retard transit',detail:`Transit ${tid} : retard signalé.`,ts:Date.now(),org_id:orgId};await sb.from('alerts').insert(al);state.alerts.unshift(al)}await sb.from('transits').update({statut:st}).eq('id',tid).eq('org_id',orgId);openTransitDetail(tid);renderTransits();renderDashboard();toast('Statut mis à jour','success')}
+
+// ── PORTIQUE ──────────────────────────────────────────────────────────────
+async function togglePortique(){state.portique.active=!state.portique.active;await saveConfig();renderPortique();toast(state.portique.active?'Portique activé':'Portique désactivé',state.portique.active?'success':'warn')}
+function renderPortique(){
+  if(!state.portique)state.portique={active:false,authorized:[],log:[]};const p=state.portique;
+  const led=document.getElementById('portiqueLed'),lbl=document.getElementById('portiqueLabel'),sub=document.getElementById('portiqueSub'),btn=document.getElementById('portiqueToggleBtn');
+  if(p.active){led.className='portique-led ok';lbl.textContent='Portique actif';sub.textContent='Surveillance en cours';btn.textContent='Désactiver';btn.className='portique-toggle-btn stop'}
+  else{led.className='portique-led standby';lbl.textContent='Portique inactif';sub.textContent='Cliquez Activer';btn.textContent='Activer';btn.className='portique-toggle-btn start'}
+  document.getElementById('authList').innerHTML=(p.authorized||[]).length?(p.authorized).map((a,i)=>`<div class="auth-item"><span class="auth-item-id">${a.id}</span><span class="auth-item-name">${a.name}</span><button class="auth-remove" onclick="removeAuth(${i})">✕</button></div>`).join(''):'<div class="no-auth">Aucune oeuvre autorisée.</div>';
+  document.getElementById('authSelect').innerHTML='<option value="">Ajouter...</option>'+state.oeuvres.filter(o=>!(p.authorized||[]).find(a=>a.id===o.id)).map(o=>`<option value="${o.id}">${o.id} — ${o.name}</option>`).join('');
+  const log=p.log||[];document.getElementById('portiqueLog').innerHTML=log.length?[...log].reverse().slice(0,20).map(l=>`<div class="log-item"><div class="log-dot ${l.type}"></div><div class="log-action">${l.text}</div><div class="log-time">${formatTime(l.ts)}</div></div>`).join(''):'<div style="font-size:12px;color:var(--text3);padding:10px 0;text-align:center">Aucun passage.</div>';
+  document.getElementById('simBtns').innerHTML=state.oeuvres.map(o=>{const isA=(p.authorized||[]).find(a=>a.id===o.id);return`<button class="sim-btn ${isA?'ok':'alarm'}" onclick="simulatePassage('${o.id}')">${isA?'✓':'⚠'} ${o.name}</button>`}).join('')||'<span style="font-size:12px;color:var(--text3)">Aucune oeuvre.</span>';
+}
+async function addAuth(){const sel=document.getElementById('authSelect');const id=sel.value;if(!id)return;const o=state.oeuvres.find(x=>x.id===id);if(!o)return;if(!state.portique.authorized)state.portique.authorized=[];state.portique.authorized.push({id:o.id,name:o.name,ts:Date.now()});await saveConfig();renderPortique();toast(o.name+' autorisée','success')}
+async function removeAuth(i){state.portique.authorized.splice(i,1);await saveConfig();renderPortique()}
+async function simulatePassage(id){
+  if(!state.portique.active){toast('Portique inactif.','warn');return}
+  const o=state.oeuvres.find(x=>x.id===id);if(!o)return;
+  const isAuth=(state.portique.authorized||[]).find(a=>a.id===id);const ts=Date.now();
+  if(!state.portique.log)state.portique.log=[];
+  if(isAuth){state.portique.log.push({type:'ok',text:`✓ Passage autorisé : ${o.name}`,ts});await addHistory('ok',`Passage portique : «${o.name}»`,currentProfile?.full_name||'Portique');await saveConfig();renderPortique();renderDashboard();beepOk();toast('Passage autorisé','success')}
+  else{state.portique.log.push({type:'alarm',text:`⚠ ALARME : ${o.name}`,ts});const al={id:'p'+Date.now(),type:'red',title:'Alarme portique',detail:`«${o.name}» — passage non autorisé !`,ts,org_id:orgId};await sb.from('alerts').insert(al);state.alerts.unshift(al);await addHistory('alert',`ALARME portique : «${o.name}»`,currentProfile?.full_name||'Portique');await saveConfig();renderPortique();renderDashboard();triggerAlarm(o.name)}
+}
+function triggerAlarm(name){document.getElementById('alarmOeuvreName').textContent=name;document.getElementById('alarmOverlay').classList.add('active');document.getElementById('portiqueLed').className='portique-led alarm';startAlarmLoop();if(navigator.vibrate)navigator.vibrate([500,200,500,200,500])}
+function dismissAlarm(){document.getElementById('alarmOverlay').classList.remove('active');stopAlarmLoop();if(state.portique.active)document.getElementById('portiqueLed').className='portique-led ok';toast('Alarme acquittée','warn')}
+
+// ── BARCODE ───────────────────────────────────────────────────────────────
+function showBarcode(id){const o=state.oeuvres.find(x=>x.id===id);if(!o)return;try{JsBarcode('#barcodesvg',o.id,{format:'CODE128',width:2,height:55,displayValue:true,fontSize:13,margin:8})}catch(e){}document.getElementById('barcodeIdText').textContent=o.name;openModal('barcodeModal')}
 function printBarcode(){const svg=document.getElementById('barcodesvg');const name=document.getElementById('barcodeIdText').textContent;const svgData=new XMLSerializer().serializeToString(svg);const w=window.open('','_blank');w.document.write(`<html><body style="text-align:center;font-family:sans-serif;padding:40px"><p style="font-size:14px;font-weight:bold;margin-bottom:12px">${name}</p>${svgData}<p style="font-size:11px;color:#888;margin-top:12px">MuséoTrack</p><script>window.print();window.close();<\/script></body></html>`)}
 
+// ── CAMERA ────────────────────────────────────────────────────────────────
 let html5QrCode=null,currentMode='camera',cameraRunning=false;
 function setMode(mode){currentMode=mode;document.getElementById('mode-camera').classList.toggle('active',mode==='camera');document.getElementById('mode-manual').classList.toggle('active',mode==='manual');if(mode==='camera'){document.getElementById('manual-container').classList.remove('active');startCamera()}else{stopCamera();document.getElementById('camera-container').classList.remove('active');document.getElementById('manual-container').classList.add('active')}}
 function startCameraIfMode(){if(currentMode==='camera')startCamera();else document.getElementById('manual-container').classList.add('active')}
@@ -830,20 +1359,39 @@ function applyScannedOeuvre(o){document.getElementById('scanId').value=o.id;docu
 function onScanIdInput(val){const o=state.oeuvres.find(x=>x.id===val);if(o)applyScannedOeuvre(o);else{document.getElementById('scannedBadge').classList.remove('show');document.getElementById('moveForm').style.display='none'}}
 function applyManualId(){const val=document.getElementById('manualId').value.trim().toUpperCase();onScanIdInput(val);if(!state.oeuvres.find(x=>x.id===val))toast('Identifiant non trouvé','warn')}
 
+// ── SETTINGS ──────────────────────────────────────────────────────────────
 function renderSettings(){document.getElementById('respList').innerHTML=state.responsables.map((r,i)=>`<li class="resp-item"><span>${r}</span><button class="btn-sm danger" onclick="removeResp(${i})">Supprimer</button></li>`).join('');syncRespSelects()}
 function syncRespSelects(){['respSelect','newResp'].forEach(id=>{const sel=document.getElementById(id);if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">-- Choisir --</option>'+state.responsables.map(r=>`<option value="${r}">${r}</option>`).join('');sel.value=cur})}
-async function addResponsable(){const val=document.getElementById('newRespInput').value.trim();if(!val)return;await sb('POST','responsables',{name:val}).catch(console.error);state.responsables.push(val);document.getElementById('newRespInput').value='';renderSettings();toast(val+' ajouté','success')}
-async function removeResp(i){const name=state.responsables[i];await sb('DELETE','responsables','',`?name=eq.${encodeURIComponent(name)}`).catch(console.error);state.responsables.splice(i,1);renderSettings()}
-function exportData(){const blob=new Blob([JSON.stringify({oeuvres:state.oeuvres,history:state.history,prets:state.prets,transits:state.transits},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='museotracK_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Export téléchargé','success')}
-async function confirmReset(){if(!confirm('Vider toutes les tables Supabase ? Irréversible.'))return;showLoading('Réinitialisation...');for(const t of ['oeuvres','history','alerts','prets','transits','responsables','config']){try{await sb('DELETE',t,'','?created_at=gte.2000-01-01')}catch(e){try{await sb('DELETE',t,'','?ts=gte.0')}catch(e2){try{await sb('DELETE',t,'','?id=gte.0')}catch(e3){try{await sb('DELETE',t,'','?key=gte.a')}catch(e4){}}}}}hideLoading();location.reload()}
+async function addResponsable(){const val=document.getElementById('newRespInput').value.trim();if(!val)return;await sb.from('responsables').insert({name:val,org_id:orgId});state.responsables.push(val);document.getElementById('newRespInput').value='';renderSettings();toast(val+' ajouté','success')}
+async function removeResp(i){const name=state.responsables[i];await sb.from('responsables').delete().eq('name',name).eq('org_id',orgId);state.responsables.splice(i,1);renderSettings()}
+function exportData(){const blob=new Blob([JSON.stringify({org:currentOrg?.name,oeuvres:state.oeuvres,history:state.history,prets:state.prets,transits:state.transits},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='museotracK_'+(currentOrg?.name||'export').replace(/\s/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Export téléchargé','success')}
 
+// ── UTILS ─────────────────────────────────────────────────────────────────
 function statusLabel(s){return{salle:'En salle',transit:'Transit',reserve:'Réserve',restauration:'Restauration',pret:'En prêt'}[s]||s}
 function formatTime(ts){const d=new Date(ts),now=new Date(),diff=now-d;if(diff<60000)return"À l'instant";if(diff<3600000)return Math.floor(diff/60000)+'min';if(diff<86400000)return Math.floor(diff/3600000)+'h';if(diff<172800000)return'Hier';return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}
 
-setInterval(async()=>{if(!document.getElementById('togRealtime')?.checked)return;try{const [oeuvres,alerts]=await Promise.all([sb('GET','oeuvres','','?order=created_at.asc'),sb('GET','alerts','','?order=ts.desc')]);state.oeuvres=oeuvres.map(dbToOeuvre);state.alerts=alerts;renderDashboard();if(document.getElementById('panel-oeuvres').classList.contains('active'))renderOeuvres()}catch(e){}},30000);
+// ── REALTIME ──────────────────────────────────────────────────────────────
+setInterval(async()=>{
+  if(!orgId)return;
+  try{
+    const[o,a]=await Promise.all([sb.from('oeuvres').select('*').eq('org_id',orgId).order('created_at',{ascending:true}),sb.from('alerts').select('*').eq('org_id',orgId).order('ts',{ascending:false})]);
+    state.oeuvres=(o.data||[]).map(dbO);state.alerts=a.data||[];
+    renderDashboard();if(document.getElementById('panel-oeuvres').classList.contains('active'))renderOeuvres();
+    setSyncStatus('online');
+  }catch(e){setSyncStatus('offline')}
+},30000);
 
-loadAll();
-document.getElementById('tab-scan').addEventListener('click',()=>setTimeout(startCameraIfMode,100));
+// ── BOOTSTRAP ─────────────────────────────────────────────────────────────
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session?.user){
+    await initApp(session.user);
+  } else {
+    document.getElementById('authScreen').style.display='flex';
+    showAuthView('viewLogin');
+  }
+  document.getElementById('tab-scan').addEventListener('click',()=>setTimeout(startCameraIfMode,100));
+})();
 </script>
 </body>
 </html>
