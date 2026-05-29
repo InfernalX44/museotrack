@@ -721,7 +721,7 @@ async function loadAll(){
   state.transits=(t.data||[]).map(dbT);
   state.users=u.data||[];
   if(c.data?.length){const cfg=c.data[0].value;state.portique=cfg.portique||{active:false,authorized:[],log:[]};state.nextId=cfg.nextId||(state.oeuvres.length+1);state.nextPretId=cfg.nextPretId||(state.prets.length+1);state.nextTransitId=cfg.nextTransitId||(state.transits.length+1)}
-  if(!state.responsables.length&&currentProfile?.role==='admin'){await sb.from('responsables').insert({name:currentProfile.full_name||'Admin',org_id:orgId}).catch(()=>{});state.responsables=[currentProfile.full_name||'Admin']}
+  if(!state.responsables.length&&currentProfile?.role==='admin'){await sb.from('responsables').insert({name:currentProfile.full_name||'Admin',org_id:orgId});state.responsables=[currentProfile.full_name||'Admin']}
 }
 
 async function saveConfig(){
@@ -910,7 +910,7 @@ async function confirmMove(){
 // ── HISTORY ───────────────────────────────────────────────────────────────
 async function addHistory(type,text,who){
   const h={type,text,who,ts:Date.now(),org_id:orgId};
-  await sb.from('history').insert(h).catch(console.error);
+  await sb.from('history').insert(h);
   state.history.unshift(h);
 }
 function renderHistory(){
@@ -1020,7 +1020,7 @@ function setMode(mode){currentMode=mode;document.getElementById('mode-camera').c
 function startCameraIfMode(){if(currentMode==='camera')startCamera();else document.getElementById('manual-container').classList.add('active')}
 function startCamera(){document.getElementById('permBox').classList.remove('show');document.getElementById('camera-container').classList.add('active');if(!html5QrCode)html5QrCode=new Html5Qrcode('qr-reader');if(cameraRunning)return;Html5Qrcode.getCameras().then(cameras=>{if(!cameras||!cameras.length){showPermError();return}const cam=cameras.find(c=>/back|rear|environment/i.test(c.label))||cameras[cameras.length-1];html5QrCode.start({deviceId:{exact:cam.id}},{fps:10,qrbox:{width:180,height:180},aspectRatio:1.0},onQRSuccess,()=>{}).then(()=>{cameraRunning=true}).catch(()=>{html5QrCode.start({facingMode:'environment'},{fps:10,qrbox:{width:180,height:180}},onQRSuccess,()=>{}).then(()=>{cameraRunning=true}).catch(showPermError)})}).catch(showPermError)}
 function showPermError(){document.getElementById('permBox').classList.add('show');document.getElementById('camera-container').classList.remove('active')}
-function stopCamera(){if(html5QrCode&&cameraRunning){html5QrCode.stop().catch(()=>{});cameraRunning=false}document.getElementById('camera-container').classList.remove('active')}
+function stopCamera(){if(html5QrCode&&cameraRunning){html5QrCode.stop();cameraRunning=false}document.getElementById('camera-container').classList.remove('active')}
 function onQRSuccess(text){const id=text.trim().toUpperCase();const o=state.oeuvres.find(x=>x.id===id);if(!o){toast('Code non reconnu : '+id,'warn');return}if(html5QrCode&&cameraRunning){html5QrCode.pause();setTimeout(()=>{if(html5QrCode&&cameraRunning)html5QrCode.resume()},3000)}applyScannedOeuvre(o);beepOk()}
 function applyScannedOeuvre(o){document.getElementById('scanId').value=o.id;document.getElementById('scannedName').textContent=o.name;document.getElementById('scannedBadge').classList.add('show');document.getElementById('moveForm').style.display='block';document.getElementById('moveForm').scrollIntoView({behavior:'smooth',block:'nearest'});toast('✓ '+o.name,'success')}
 function onScanIdInput(val){const o=state.oeuvres.find(x=>x.id===val);if(o)applyScannedOeuvre(o);else{document.getElementById('scannedBadge').classList.remove('show');document.getElementById('moveForm').style.display='none'}}
